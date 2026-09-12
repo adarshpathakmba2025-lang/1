@@ -55,6 +55,11 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
+    // animateColorAsState, AnimatedVisibility, updateTransition and friends live here.
+    // material3/foundation happened to pull in enough of this for some of it to work,
+    // but not all of it, hence the inconsistent errors — declaring it directly removes
+    // that ambiguity.
+    implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-core")
 
