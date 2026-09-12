@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Nine chunky squares forming an asymmetric tick: short stroke down, long stroke up. -->
+    <group android:translateX="30" android:translateY="34">
+        <path android:fillColor="#0C131B" android:pathData="M0,10h7v7h-7z" />
+        <path android:fillColor="#0C131B" android:pathData="M8,18h7v7h-7z" />
+        <path android:fillColor="#0C131B" android:pathData="M16,26h7v7h-7z" />
+        <path android:fillColor="#0C131B" android:pathData="M24,18h7v7h-7z" />
+        <path android:fillColor="#0C131B" android:pathData="M32,10h7v7h-7z" />
+        <path android:fillColor="#0C131B" android:pathData="M40,2h7v7h-7z" />
+        <path android:fillColor="#0C131B" android:pathData="M48,-6h7v7h-7z" />
+    </group>
+</vector>
