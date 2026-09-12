@@ -38,4 +38,11 @@ object Launch {
             .setData(Uri.parse("bits://edit/" + Uri.encode(itemId)))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra(EXTRA_ITEM_ID, itemId)
+
+    /** Opens the same floating card, set up to add a new item to a category. */
+    fun quickAdd(context: Context, categoryId: String): Intent =
+        Intent(context, QuickEditActivity::class.java)
+            .setData(Uri.parse("bits://add/" + Uri.encode(categoryId)))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .putExtra(EXTRA_CATEGORY, categoryId)
 }

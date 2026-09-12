@@ -1,9 +1,12 @@
 package com.bits.app.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +53,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.AnnotatedString
@@ -85,6 +90,7 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 @Composable
 fun HomeScreen(
@@ -94,12 +100,20 @@ fun HomeScreen(
     onSelectCategory: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGames: () -> Unit,
+    onTitleTap: () -> Unit,
+    onHiddenCategory: () -> Unit,
     tutorialActive: Boolean,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var managing by rememberSaveable { mutableStateOf(false) }
     val categories = state.sortedCategories
     val selected = categories.firstOrNull { it.id == selectedCategoryId } ?: categories.first()
+    val selectedIndex = categories.indexOfFirst { it.id == selected.id }.coerceAtLeast(0)
+
+    // Leaving Edit with the back button counts as Done rather than closing the app.
+    BackHandler(enabled = managing) { managing = false }
+    // Backing out of search clears it first.
+    BackHandler(enabled = !managing && query.isNotBlank()) { query = "" }
 
     // The tour always starts from a clean home page.
     LaunchedEffect(tutorialActive) {
@@ -114,7 +128,19 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth().padding(start = 6.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Bits", style = BitsText.Brand, modifier = Modifier.weight(1f))
+            Text(
+                text = "Bits",
+                style = BitsText.Brand,
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onTitleTap,
+                    )
+                    .padding(vertical = 4.dp),
+            )
             Box(
                 modifier = Modifier
                     .tutorialTarget(TutorialTarget.GAMES)
@@ -127,7 +153,7 @@ fun HomeScreen(
                 Image(
                     painter = painterResource(R.drawable.ic_game_controller),
                     contentDescription = "Games",
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(30.dp),
                 )
             }
             Box(
@@ -183,13 +209,24 @@ fun HomeScreen(
                     },
                 )
 
-                managing -> ManageCategories(state = state, repository = repository)
+                managing -> ManageCategories(
+                    state = state,
+                    repository = repository,
+                    onHiddenCategory = onHiddenCategory,
+                )
 
                 else -> key(selected.id) {
                     CategoryPanel(
                         category = selected,
                         items = state.itemsIn(selected.id),
                         repository = repository,
+                        // Swiping sideways moves to the next or previous category.
+                        onSwipeToPrevious = {
+                            if (selectedIndex > 0) onSelectCategory(categories[selectedIndex - 1].id)
+                        },
+                        onSwipeToNext = {
+                            if (selectedIndex < categories.lastIndex) onSelectCategory(categories[selectedIndex + 1].id)
+                        },
                     )
                 }
             }
@@ -303,7 +340,13 @@ private fun subtitleFor(categoryId: String): String? = when (categoryId) {
 }
 
 @Composable
-private fun CategoryPanel(category: Category, items: List<Item>, repository: BitsRepository) {
+private fun CategoryPanel(
+    category: Category,
+    items: List<Item>,
+    repository: BitsRepository,
+    onSwipeToPrevious: () -> Unit,
+    onSwipeToNext: () -> Unit,
+) {
     val listState = rememberLazyListState()
     var localItems by remember { mutableStateOf(items) }
     var dragging by remember { mutableStateOf(false) }
@@ -330,7 +373,28 @@ private fun CategoryPanel(category: Category, items: List<Item>, repository: Bit
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .pointerInput(category.id) {
+                var totalX = 0f
+                var totalY = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { totalX = 0f; totalY = 0f },
+                    onHorizontalDrag = { change, amount ->
+                        totalX += amount
+                        totalY += change.positionChange().y
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        // Ignore mostly-vertical drags, which belong to the list's own scrolling.
+                        if (abs(totalX) > 80f && abs(totalX) > abs(totalY)) {
+                            if (totalX > 0) onSwipeToPrevious() else onSwipeToNext()
+                        }
+                    },
+                )
+            }
+    ) {
         Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 6.dp)) {
             Text(category.name, style = BitsText.Title)
             subtitleFor(category.id)?.let {
@@ -513,7 +577,7 @@ private fun EditField(
 }
 
 @Composable
-private fun ManageCategories(state: BitsState, repository: BitsRepository) {
+private fun ManageCategories(state: BitsState, repository: BitsRepository, onHiddenCategory: () -> Unit) {
     val categories = state.sortedCategories
     val listState = rememberLazyListState()
     var local by remember { mutableStateOf(categories) }
@@ -579,25 +643,18 @@ private fun ManageCategories(state: BitsState, repository: BitsRepository) {
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable(
                                             onClickLabel = if (shown) "Hide from widget" else "Show on widget",
-                                        ) { repository.edit { s -> s.setShownOnWidget(category.id, !shown) } }
+                                        ) {
+                                            repository.edit { s -> s.setShownOnWidget(category.id, !shown) }
+                                            if (shown) onHiddenCategory()
+                                        }
                                         .padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 6.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
                                         text = category.name,
-                                        style = if (shown) BitsText.Body else BitsText.Body.copy(color = BitsColors.Muted.copy(alpha = 0.55f)),
+                                        style = if (shown) BitsText.Body
+                                        else BitsText.Body.copy(color = BitsColors.Muted.copy(alpha = 0.5f)),
                                     )
-                                    if (!shown) {
-                                        Text(
-                                            text = "Hidden",
-                                            style = BitsText.Small.copy(color = BitsColors.Muted.copy(alpha = 0.7f)),
-                                            modifier = Modifier
-                                                .padding(start = 8.dp)
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .background(Color(0x14EAE6DA))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                                        )
-                                    }
                                 }
                                 if (isSystemCategory(category.id)) {
                                     // Invisible spacer that keeps rows lined up with the ones that have Rename/Delete.

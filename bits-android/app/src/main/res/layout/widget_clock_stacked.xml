@@ -8,20 +8,21 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="sans-serif-medium"
+        android:format12Hour="EEEE"
+        android:format24Hour="EEEE"
+        android:letterSpacing="0.18"
+        android:maxLines="1"
+        android:textAllCaps="true"
+        android:textColor="#BFEAE6DA"
+        android:textSize="13dp" />
+    <TextClock
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-light"
         android:format12Hour="h:mm"
         android:format24Hour="HH:mm"
         android:includeFontPadding="false"
         android:maxLines="1"
         android:textColor="#EAE6DA"
-        android:textSize="46dp" />
-    <TextClock
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="3dp"
-        android:fontFamily="sans-serif-medium"
-        android:format12Hour="EEEE, d MMMM"
-        android:format24Hour="EEEE, d MMMM"
-        android:maxLines="1"
-        android:textColor="#BFEAE6DA"
-        android:textSize="14dp" />
+        android:textSize="44dp" />
 </LinearLayout>

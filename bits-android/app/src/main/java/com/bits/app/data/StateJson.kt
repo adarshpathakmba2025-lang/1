@@ -32,7 +32,7 @@ internal object StateJson {
 
         val root = JSONObject()
             .put("app", "bits")
-            .put("version", 3)
+            .put("version", 4)
             .put("lastRollover", state.lastRollover)
             .put("categories", categories)
             .put("items", items)
@@ -50,6 +50,12 @@ internal object StateJson {
                     .put("tutorialSeen", state.preferences.tutorialSeen)
                     .put("isPro", state.preferences.isPro)
                     .put("widgetThemeId", state.preferences.widgetThemeId)
+                    .put("clockStyleId", state.preferences.clockStyleId)
+                    .put("addToBottom", state.preferences.addToBottom)
+                    .put("hideHintSeen", state.preferences.hideHintSeen)
+                    .put("bonusThemeId", state.preferences.bonusThemeId)
+                    .put("easterEggUsed", state.preferences.easterEggUsed)
+                    .put("highScores", JSONObject(state.preferences.highScores.mapValues { it.value as Any }))
             )
         if (exportedAt != null) root.put("exportedAt", exportedAt)
         return root.toString()
@@ -118,11 +124,24 @@ internal object StateJson {
 
     private fun decodePreferences(root: JSONObject): Preferences {
         val json = root.optJSONObject("preferences") ?: return Preferences.Default
+        val scoresJson = json.optJSONObject("highScores") ?: JSONObject()
+        val highScores = mutableMapOf<String, Int>()
+        val scoreKeys = scoresJson.keys()
+        while (scoreKeys.hasNext()) {
+            val key = scoreKeys.next()
+            highScores[key] = scoresJson.optInt(key, 0)
+        }
         return Preferences(
             autoClearCompleted = json.optBoolean("autoClearCompleted", false),
             tutorialSeen = json.optBoolean("tutorialSeen", false),
             isPro = json.optBoolean("isPro", false),
             widgetThemeId = json.optString("widgetThemeId", WidgetThemes.Classic.id),
+            clockStyleId = json.optString("clockStyleId", ClockStyle.MINIMAL),
+            addToBottom = json.optBoolean("addToBottom", false),
+            hideHintSeen = json.optBoolean("hideHintSeen", false),
+            bonusThemeId = json.optString("bonusThemeId", ""),
+            easterEggUsed = json.optBoolean("easterEggUsed", false),
+            highScores = highScores,
         )
     }
 

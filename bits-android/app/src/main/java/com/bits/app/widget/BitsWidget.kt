@@ -44,19 +44,26 @@ import com.bits.app.R
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.BitsState
 import com.bits.app.data.Category
+import com.bits.app.data.ClockStyle
 import com.bits.app.data.Item
-import com.bits.app.data.WidgetThemes
 import com.bits.app.time.MidnightScheduler
 
 private val Muted = Color(0xFF8A95A3)
-
-/** Must match the clock height in the in-app preview. */
-private val ClockHeight = 88.dp
 
 private sealed class WidgetLine {
     class Header(val category: Category, val first: Boolean) : WidgetLine()
     class Entry(val item: Item) : WidgetLine()
     object Hint : WidgetLine()
+}
+
+/** Layout and height for each clock style. Heights match the in-app preview. */
+private fun clockLayout(styleId: String): Pair<Int, Int> = when (styleId) {
+    ClockStyle.COMPACT -> R.layout.widget_clock_compact to 40
+    ClockStyle.STACKED -> R.layout.widget_clock_stacked to 84
+    ClockStyle.MONO -> R.layout.widget_clock_mono to 78
+    ClockStyle.BOLD -> R.layout.widget_clock_bold to 88
+    ClockStyle.DOTTED -> R.layout.widget_clock_seconds to 80
+    else -> R.layout.widget_clock to 88
 }
 
 class BitsWidget : GlanceAppWidget() {
@@ -78,8 +85,8 @@ class BitsWidget : GlanceAppWidget() {
 
 @Composable
 private fun WidgetBody(context: Context, state: BitsState) {
-    val theme = WidgetThemes.find(state.preferences.widgetThemeId)
-    val ink = Color(0xFFEAE6DA)
+    val theme = state.activeTheme
+    val ink = Color(theme.ink)
     val done = Color(theme.doneColor)
     val accent = Color(theme.accent)
     val background = Color(theme.backgroundTint)
@@ -99,13 +106,15 @@ private fun WidgetBody(context: Context, state: BitsState) {
             .appWidgetBackground()
             .background(background.copy(alpha = state.widget.opacity))
             .cornerRadius(22.dp)
-            .padding(start = 16.dp, end = 10.dp, top = 14.dp, bottom = 4.dp)
+            // Extra end padding leaves a clear channel for the scrollbar, so long
+            // item text is never drawn underneath it.
+            .padding(start = 16.dp, end = 6.dp, top = 14.dp, bottom = 4.dp)
     ) {
         if (state.widget.showClock) {
-            // Fixed height: the clock stays pinned and the list below keeps the remaining space.
+            val (layout, heightDp) = clockLayout(state.activeClockStyle.id)
             AndroidRemoteViews(
-                remoteViews = RemoteViews(context.packageName, R.layout.widget_clock),
-                modifier = GlanceModifier.fillMaxWidth().height(ClockHeight),
+                remoteViews = RemoteViews(context.packageName, layout),
+                modifier = GlanceModifier.fillMaxWidth().height(heightDp.dp).padding(end = 10.dp),
             )
             Spacer(modifier = GlanceModifier.height(8.dp))
         }
@@ -116,15 +125,16 @@ private fun WidgetBody(context: Context, state: BitsState) {
                     is WidgetLine.Header -> HeaderLine(context, line.category, line.first, accent)
                     is WidgetLine.Entry -> EntryLine(context, line.item, ink, done)
                     is WidgetLine.Hint -> Text(
-                        text = "Nothing to show. In the app, tap Edit and switch on a category.",
+                        text = "Nothing to show. In the app, tap Edit and tap a category name to bring it back.",
                         style = TextStyle(color = ColorProvider(Muted), fontSize = 14.sp, fontWeight = FontWeight.Medium),
+                        modifier = GlanceModifier.padding(end = 14.dp),
                     )
                 }
             }
         }
 
         Row(
-            modifier = GlanceModifier.fillMaxWidth(),
+            modifier = GlanceModifier.fillMaxWidth().padding(end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Bottom-left: quick access to the mini-games section.
@@ -132,24 +142,24 @@ private fun WidgetBody(context: Context, state: BitsState) {
                 provider = ImageProvider(R.drawable.ic_game_controller),
                 contentDescription = "Play a quick game",
                 modifier = GlanceModifier
-                    .size(36.dp)
-                    .padding(9.dp)
+                    .size(44.dp)
+                    .padding(8.dp)
                     .clickable(actionStartActivity(Launch.games(context))),
             )
             Spacer(modifier = GlanceModifier.defaultWeight())
             Text(
                 text = "Bits",
-                style = TextStyle(color = ColorProvider(Muted), fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                style = TextStyle(color = ColorProvider(Muted), fontSize = 14.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier
-                    .padding(vertical = 8.dp)
+                    .padding(vertical = 8.dp, horizontal = 6.dp)
                     .clickable(actionStartActivity(Launch.app(context))),
             )
             Image(
                 provider = ImageProvider(R.drawable.ic_tune),
                 contentDescription = "Bits settings",
                 modifier = GlanceModifier
-                    .size(36.dp)
-                    .padding(9.dp)
+                    .size(44.dp)
+                    .padding(8.dp)
                     .clickable(actionStartActivity(Launch.settings(context))),
             )
         }
@@ -158,20 +168,21 @@ private fun WidgetBody(context: Context, state: BitsState) {
 
 @Composable
 private fun HeaderLine(context: Context, category: Category, first: Boolean, accent: Color) {
+    // Tapping a heading opens the floating "add to this list" card rather than the whole app.
     Text(
         text = category.name.uppercase(),
         style = TextStyle(color = ColorProvider(accent), fontSize = 13.sp, fontWeight = FontWeight.Bold),
         modifier = GlanceModifier
             .fillMaxWidth()
-            .padding(top = if (first) 0.dp else 15.dp, bottom = 5.dp)
-            .clickable(actionStartActivity(Launch.category(context, category.id))),
+            .padding(top = if (first) 0.dp else 15.dp, bottom = 5.dp, end = 14.dp)
+            .clickable(actionStartActivity(Launch.quickAdd(context, category.id))),
     )
 }
 
 @Composable
 private fun EntryLine(context: Context, item: Item, ink: Color, done: Color) {
     Row(
-        modifier = GlanceModifier.fillMaxWidth().padding(vertical = 3.dp),
+        modifier = GlanceModifier.fillMaxWidth().padding(vertical = 3.dp, horizontal = 0.dp),
         verticalAlignment = Alignment.Top,
     ) {
         // Checkbox: toggles done/undone in place.
@@ -179,7 +190,7 @@ private fun EntryLine(context: Context, item: Item, ink: Color, done: Color) {
             provider = ImageProvider(if (item.done) R.drawable.ic_check_on else R.drawable.ic_check_off),
             contentDescription = if (item.done) "Mark not done" else "Mark done",
             modifier = GlanceModifier
-                .size(17.dp)
+                .size(20.dp)
                 .clickable(
                     actionRunCallback<ToggleItemAction>(
                         actionParametersOf(ToggleItemAction.ItemIdKey to item.id)
@@ -198,6 +209,7 @@ private fun EntryLine(context: Context, item: Item, ink: Color, done: Color) {
             ),
             modifier = GlanceModifier
                 .defaultWeight()
+                .padding(end = 14.dp)
                 .clickable(actionStartActivity(Launch.quickEdit(context, item.id))),
         )
     }

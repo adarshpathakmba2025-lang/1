@@ -40,6 +40,8 @@ object BitsFonts {
         Font(R.font.atkinson_hyperlegible_regular, FontWeight.Normal),
         Font(R.font.atkinson_hyperlegible_bold, FontWeight.Bold),
     )
+    /** Used only in the games section, for its arcade feel. */
+    val Pixel = FontFamily(Font(R.font.press_start_2p, FontWeight.Normal))
 }
 
 object BitsText {
@@ -57,6 +59,18 @@ object BitsText {
     val WidgetHeading = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 13.sp, lineHeight = 16.sp, color = BitsColors.Amber)
     val WidgetItem = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 15.sp, lineHeight = 19.sp, color = BitsColors.Ink)
     val WidgetItemDone = WidgetItem.copy(color = BitsColors.Done, textDecoration = TextDecoration.LineThrough)
+
+    val WidgetClockCompact = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 26.sp, lineHeight = 30.sp, color = BitsColors.Ink)
+    val WidgetClockMono = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium, fontSize = 38.sp, lineHeight = 44.sp, color = BitsColors.Ink)
+    val WidgetDateMono = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 16.sp, color = BitsColors.Ink.copy(alpha = 0.75f))
+    val WidgetClockBold = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Black, fontSize = 52.sp, lineHeight = 56.sp, color = BitsColors.Ink)
+    val WidgetClockSeconds = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 36.sp, lineHeight = 42.sp, color = BitsColors.Ink)
+
+    // Games section. Press Start 2P is wide and tall, so sizes run small and lines run loose.
+    val PixelTitle = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 17.sp, lineHeight = 26.sp, color = BitsColors.Ink)
+    val PixelHeading = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 12.sp, lineHeight = 20.sp, color = BitsColors.Ink)
+    val PixelBody = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 9.sp, lineHeight = 17.sp, color = BitsColors.Muted)
+    val PixelScore = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 11.sp, lineHeight = 18.sp, color = BitsColors.Amber)
 }
 
 @Composable

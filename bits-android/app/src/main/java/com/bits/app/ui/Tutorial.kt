@@ -106,7 +106,7 @@ private val tomorrowNeverComes = buildAnnotatedString {
 private val tourSteps = listOf(
     TourStep(
         title = plain("Welcome to Bits!"),
-        body = "A single swipe box for everything you don\u2019t wanna forget! Log your tasks, book list, quick ideas that usually slip out, or whatever you like! Here\u2019s a quick walkthrough\u2026",
+        body = "One box for everything you don\u2019t wanna forget \u2014 tasks, book lists, ideas that usually slip out. Here\u2019s a quick walkthrough\u2026",
         target = null,
     ),
     TourStep(
@@ -126,7 +126,7 @@ private val tourSteps = listOf(
     ),
     TourStep(
         title = plain("Categories and lists"),
-        body = "You can maintain separate lists under multiple categories.",
+        body = "You can maintain separate lists under multiple categories. Swipe sideways to flip between them.",
         target = TutorialTarget.CHIPS,
     ),
     TourStep(
@@ -136,7 +136,7 @@ private val tourSteps = listOf(
     ),
     TourStep(
         title = plain("Make it yours"),
-        body = "Tap Edit to add, rename, delete, hide or reorder categories. Tap a name to dim it \u2014 dimmed ones stay off your widget.",
+        body = "Tap Edit to add, rename, delete, hide or reorder categories. A dimmed name means it\u2019s off your widget.",
         target = TutorialTarget.EDIT,
     ),
     TourStep(
