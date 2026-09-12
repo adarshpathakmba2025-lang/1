@@ -44,7 +44,7 @@ import com.bits.app.ui.theme.BitsText
 
 private const val FOUNDER_MESSAGE = "Hey, I'm \u0101darsh! I initially built this app for myself, but once it took shape, I knew I wanted to share it with everyone for free. It runs entirely offline, meaning your data stays strictly on your local device \u2014 no cloud uploads, no tracking, and never for sale.\n\nWhen you upgrade to Pro, you're not just unlocking extra features; you're directly keeping a tiny independent project alive and evolving. That genuinely means the world to me. Thank you for being here! ^_^"
 
-private const val THANK_YOU_MESSAGE = "Hey, I'm \u0101darsh! You went Pro \u2014 thank you, really. Bits is a tiny independent project, and you're the reason it keeps growing.\n\nEverything's unlocked below. Your data still never leaves your device. If there's something you'd love to see in Bits, I'd genuinely like to hear it. ^_^"
+private const val THANK_YOU_MESSAGE = "You went Pro \u2014 thank you, really. Bits is a tiny independent project, and you're the reason it keeps growing.\n\nEverything's unlocked below. Your data still never leaves your device. If there's something you'd love to see in Bits, I'd genuinely like to hear it. ^_^"
 
 /** Shown once before the Pro page. Pro users get a thank-you instead of a pitch. */
 @Composable
@@ -68,9 +68,9 @@ private data class Perk(val title: String, val body: String, val icon: Int)
 
 private val perks = listOf(
     Perk("Four more mini-games", "Memory Match, X and O, Word Guess and Flappy, all unlocked.", R.drawable.ic_game_flappy),
-    Perk("Seven widget themes", "Full palettes, not just accent colours. Try any before you buy.", R.drawable.ic_theme),
+    Perk("Eight widget themes", "Full palettes, not just accent colours. Try any before you buy.", R.drawable.ic_theme),
     Perk("Premium clock styles", "Stacked, monospace, statement and seconds.", R.drawable.ic_clock),
-    Perk("A second widget list", "Its own categories, free of Today and Tomorrow. Coming soon.", R.drawable.ic_widget_add),
+    Perk("Independent widget lists", "Give each widget its own categories.", R.drawable.ic_widget_add),
     Perk("Keeps Bits going", "No ads, no tracking, no subscriptions required. Just this.", R.drawable.ic_heart),
 )
 
@@ -134,7 +134,7 @@ fun PaywallScreen(state: BitsState, onBack: () -> Unit, onPurchase: () -> Unit) 
                 Spacer(Modifier.height(4.dp))
                 PlanCard(
                     title = "Lifetime",
-                    price = "\u20b9179",
+                    price = "\u20b9229",
                     caption = "Pay once. Yours forever.",
                     badge = "BEST VALUE",
                     selected = selectedPlan == "lifetime",
@@ -176,7 +176,7 @@ fun PaywallScreen(state: BitsState, onBack: () -> Unit, onPurchase: () -> Unit) 
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = if (selectedPlan == "lifetime") "Get Lifetime \u2014 \u20b9179" else "Start Monthly \u2014 \u20b949",
+                    text = if (selectedPlan == "lifetime") "Get Lifetime \u2014 \u20b9229" else "Start Monthly \u2014 \u20b949",
                     style = BitsText.BodyBold.copy(color = BitsColors.Bg),
                     textAlign = TextAlign.Center,
                     modifier = Modifier

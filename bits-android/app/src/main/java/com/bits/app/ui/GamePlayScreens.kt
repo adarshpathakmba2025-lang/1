@@ -1,6 +1,8 @@
 package com.bits.app.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -42,6 +46,7 @@ import com.bits.app.games.FlappyState
 import com.bits.app.games.Game2048
 import com.bits.app.games.LetterMark
 import com.bits.app.games.MemoryCard
+import com.bits.app.games.MemoryDeck
 import com.bits.app.games.MemoryMatch
 import com.bits.app.games.Snake
 import com.bits.app.games.SnakeState
@@ -51,6 +56,8 @@ import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlin.math.sin
+import kotlin.random.Random
 
 /** Detects a swipe in one of four directions. Shared by 2048 and Snake. */
 private fun Modifier.swipeable(onSwipe: (Direction) -> Unit): Modifier = pointerInput(Unit) {
@@ -224,7 +231,11 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                     state = Snake.newGame()
                 }
             } else {
-                Text("SWIPE TO TURN", style = BitsText.PixelBody)
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Text("SWIPE OR USE THE PAD", style = BitsText.PixelBody)
+                    Spacer(Modifier.height(10.dp))
+                    PixelDpad(onMove = { state = Snake.turn(state, it) })
+                }
             }
         },
     ) {
@@ -256,22 +267,33 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
 
 /* ---------------------------- Memory match ---------------------------- */
 
-private val memoryColors = listOf(
+private val memoryPalette = listOf(
     Color(0xFFF2B544), Color(0xFF7FD68A), Color(0xFF5BD3D3), Color(0xFF9DBBFF),
     Color(0xFFCFA6FF), Color(0xFFF3A6B8), Color(0xFFFF9E6B), Color(0xFFC9B688),
+    Color(0xFF8FD694), Color(0xFFE8907F),
 )
+
+private val fruitGlyphs = listOf("\uD83C\uDF4E", "\uD83C\uDF4C", "\uD83C\uDF47", "\uD83C\uDF53", "\uD83C\uDF4A", "\uD83C\uDF49", "\uD83C\uDF52", "\uD83C\uDF51", "\uD83C\uDF50", "\uD83E\uDD5D")
 
 @Composable
 fun MemoryScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
-    var cards by remember { mutableStateOf(MemoryMatch.newGame()) }
+    var level by remember { mutableIntStateOf(1) }
+    var deal by remember { mutableStateOf(MemoryMatch.newLevel(1)) }
+    var cards by remember { mutableStateOf(deal.cards) }
     var moves by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
+    var celebrate by remember { mutableStateOf(false) }
     val complete = MemoryMatch.isComplete(cards)
 
-    // Fewer moves is better, so the score counts down from a generous ceiling.
-    fun scoreFor(moveCount: Int) = (100 - moveCount * 2).coerceAtLeast(10)
+    // Fewer moves is better, and later levels are worth more.
+    fun scoreFor(moveCount: Int) = ((100 - moveCount * 2).coerceAtLeast(10)) * level
 
-    LaunchedEffect(complete) { if (complete) onScore(scoreFor(moves)) }
+    LaunchedEffect(complete) {
+        if (complete) {
+            celebrate = true
+            onScore(scoreFor(moves))
+        }
+    }
 
     LaunchedEffect(cards) {
         if (MemoryMatch.faceUpUnmatched(cards).size == 2) {
@@ -283,55 +305,122 @@ fun MemoryScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
         }
     }
 
-    GameFrame(
-        title = "Memory Match",
-        score = if (complete) scoreFor(moves) else moves,
-        best = best,
-        onBack = onBack,
-        footer = {
-            if (complete) {
-                GameOverBanner("Cleared in $moves moves") {
-                    cards = MemoryMatch.newGame()
-                    moves = 0
+    fun start(newLevel: Int) {
+        val dealt = MemoryMatch.newLevel(newLevel)
+        level = newLevel
+        deal = dealt
+        cards = dealt.cards
+        moves = 0
+        celebrate = false
+    }
+
+    Box {
+        GameFrame(
+            title = "Memory Match",
+            score = if (complete) scoreFor(moves) else moves,
+            best = best,
+            onBack = onBack,
+            footer = {
+                if (complete) {
+                    GameOverBanner("Level $level cleared") { start(level + 1) }
+                } else {
+                    Text(
+                        "LEVEL $level \u00b7 ${deal.deck.label.uppercase()}",
+                        style = BitsText.PixelBody,
+                    )
                 }
-            } else {
-                Text("FIND EVERY PAIR", style = BitsText.PixelBody)
-            }
-        },
-    ) {
-        Column(
-            Modifier.fillMaxWidth().aspectRatio(0.82f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            },
         ) {
-            cards.chunked(4).forEach { row ->
-                Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { card ->
-                        MemoryTile(
-                            card = card,
-                            modifier = Modifier.weight(1f).fillMaxSize(),
-                            onClick = { if (!busy) cards = MemoryMatch.flip(cards, card.id) },
-                        )
+            Column(
+                Modifier.fillMaxWidth().aspectRatio(if (deal.pairs > 8) 0.78f else 0.86f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                cards.chunked(4).forEach { row ->
+                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { card ->
+                            MemoryTile(
+                                card = card,
+                                deck = deal.deck,
+                                modifier = Modifier.weight(1f).fillMaxSize(),
+                                onClick = { if (!busy) cards = MemoryMatch.flip(cards, card.id) },
+                            )
+                        }
+                        // Keeps the last row aligned when it isn't full.
+                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
+        }
+
+        if (celebrate) {
+            ConfettiBurst(onFinished = { celebrate = false })
         }
     }
 }
 
 @Composable
-private fun MemoryTile(card: MemoryCard, modifier: Modifier, onClick: () -> Unit) {
+private fun MemoryTile(card: MemoryCard, deck: MemoryDeck, modifier: Modifier, onClick: () -> Unit) {
     val revealed = card.faceUp || card.matched
-    val alpha by animateFloatAsState(if (card.matched) 0.55f else 1f, label = "matched")
+    val alpha by animateFloatAsState(if (card.matched) 0.5f else 1f, label = "matched")
+    val scale by animateFloatAsState(if (revealed) 1f else 0.97f, label = "flip")
+    val colour = memoryPalette[card.symbol % memoryPalette.size]
+
+    // Colour decks paint the whole tile; the rest show a symbol on a neutral face.
+    val face = if (deck == MemoryDeck.COLORS) colour.copy(alpha = alpha) else Color(0xFF22303D)
+
     Box(
         modifier
+            .scale(scale)
             .background(Arcade.Border)
             .padding(2.dp)
-            .background(if (revealed) memoryColors[card.symbol].copy(alpha = alpha) else Arcade.Panel)
+            .background(if (revealed) face else Arcade.Panel)
             .clickable(enabled = !revealed, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        if (!revealed) {
-            Text("?", style = BitsText.PixelHeading.copy(color = BitsColors.Muted))
+        when {
+            !revealed -> Text("?", style = BitsText.PixelHeading.copy(color = BitsColors.Muted))
+            deck == MemoryDeck.COLORS -> Unit
+            deck == MemoryDeck.NUMBERS -> Text(
+                (card.symbol + 1).toString(),
+                style = BitsText.PixelHeading.copy(color = colour.copy(alpha = alpha)),
+            )
+            deck == MemoryDeck.LETTERS -> Text(
+                ('A' + card.symbol).toString(),
+                style = BitsText.PixelHeading.copy(color = colour.copy(alpha = alpha)),
+            )
+            deck == MemoryDeck.FRUIT -> Text(
+                fruitGlyphs[card.symbol % fruitGlyphs.size],
+                style = BitsText.PixelHeading.copy(color = Color.White.copy(alpha = alpha)),
+            )
+            else -> PixelShape(index = card.symbol, colour = colour.copy(alpha = alpha))
+        }
+    }
+}
+
+/** Blocky shapes drawn from squares, matching the pixel look of this section. */
+@Composable
+private fun PixelShape(index: Int, colour: Color) {
+    val grid = when (index % 5) {
+        0 -> listOf("01110", "11111", "11111", "11111", "01110") // blob
+        1 -> listOf("00100", "01110", "11111", "01110", "00100") // diamond
+        2 -> listOf("11111", "10001", "10001", "10001", "11111") // frame
+        3 -> listOf("10001", "01010", "00100", "01010", "10001") // cross
+        else -> listOf("00100", "00100", "11111", "00100", "00100") // plus
+    }
+    Canvas(Modifier.fillMaxSize().padding(9.dp)) {
+        val cell = minOf(size.width, size.height) / 5f
+        val offsetX = (size.width - cell * 5) / 2f
+        val offsetY = (size.height - cell * 5) / 2f
+        grid.forEachIndexed { row, line ->
+            line.forEachIndexed { col, ch ->
+                if (ch == '1') {
+                    drawRect(
+                        color = colour,
+                        topLeft = Offset(offsetX + col * cell, offsetY + row * cell),
+                        size = Size(cell, cell),
+                    )
+                }
+            }
         }
     }
 }
@@ -340,18 +429,31 @@ private fun MemoryTile(card: MemoryCard, modifier: Modifier, onClick: () -> Unit
 
 @Composable
 fun TicTacToeScreen(onBack: () -> Unit) {
+    var twoPlayer by remember { mutableStateOf(false) }
     var board by remember { mutableStateOf(TicTacToe.empty()) }
     var playerTurn by remember { mutableStateOf(true) }
     var wins by remember { mutableIntStateOf(0) }
     var draws by remember { mutableIntStateOf(0) }
+    val random = remember { Random(System.currentTimeMillis()) }
+    // Re-rolled each round: usually sharp, but every so often it plays loose
+    // enough to lose, so the game doesn't feel hopeless.
+    var mistakeChance by remember { mutableFloatStateOf(0f) }
     val winner = TicTacToe.winner(board)
     val over = TicTacToe.isOver(board)
     val line = TicTacToe.winningLine(board)
 
-    LaunchedEffect(playerTurn, board) {
-        if (!playerTurn && !over) {
+    fun reset() {
+        board = TicTacToe.empty()
+        playerTurn = true
+        mistakeChance = if (random.nextFloat() < 0.30f) 0.35f else 0f
+    }
+
+    LaunchedEffect(Unit) { reset() }
+
+    LaunchedEffect(playerTurn, board, twoPlayer) {
+        if (!twoPlayer && !playerTurn && !over) {
             delay(350)
-            val move = TicTacToe.bestMove(board, TicTacToe.O)
+            val move = TicTacToe.chooseMove(board, TicTacToe.O, mistakeChance, random)
             if (move >= 0) board = TicTacToe.play(board, move, TicTacToe.O)
             playerTurn = true
         }
@@ -371,21 +473,60 @@ fun TicTacToeScreen(onBack: () -> Unit) {
         onBack = onBack,
         footer = {
             val message = when {
-                winner == TicTacToe.X -> "You win!"
-                winner == TicTacToe.O -> "Computer wins"
+                winner == TicTacToe.X -> if (twoPlayer) "X wins!" else "You win!"
+                winner == TicTacToe.O -> if (twoPlayer) "O wins!" else "Computer wins"
                 over -> "Draw"
                 else -> null
             }
             if (message != null) {
-                GameOverBanner(message) {
-                    board = TicTacToe.empty()
-                    playerTurn = true
-                }
+                GameOverBanner(message) { reset() }
             } else {
-                Text(if (playerTurn) "YOUR TURN \u2014 X" else "THINKING\u2026", style = BitsText.PixelBody)
+                Text(
+                    text = when {
+                        twoPlayer && playerTurn -> "X\u2019S TURN"
+                        twoPlayer -> "O\u2019S TURN"
+                        playerTurn -> "YOUR TURN \u2014 X"
+                        else -> "THINKING\u2026"
+                    },
+                    style = BitsText.PixelBody,
+                )
             }
         },
     ) {
+        Column(Modifier.fillMaxWidth()) {
+            // One compact switch keeps the board the hero; no extra card for this.
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                listOf(false to "VS PHONE", true to "2 PLAYERS").forEach { (value, label) ->
+                    val active = twoPlayer == value
+                    Text(
+                        text = label,
+                        style = BitsText.PixelBody.copy(color = if (active) Arcade.Screen else BitsColors.Muted),
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(if (active) Arcade.Glow else Arcade.Panel)
+                            .clickable {
+                                if (twoPlayer != value) {
+                                    twoPlayer = value
+                                    reset()
+                                }
+                            }
+                            .padding(vertical = 10.dp),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+
+            if (twoPlayer) {
+                Text(
+                    text = "GO ON, DARE THE PERSON NEXT TO YOU.",
+                    style = BitsText.PixelBody.copy(color = Arcade.Glow),
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
+
         Column(
             Modifier.fillMaxWidth().aspectRatio(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -403,9 +544,10 @@ fun TicTacToeScreen(onBack: () -> Unit) {
                                 .background(if (highlight) Arcade.Glow else Arcade.Border)
                                 .padding(2.dp)
                                 .background(Arcade.Panel)
-                                .clickable(enabled = playerTurn && value == TicTacToe.EMPTY && !over) {
-                                    board = TicTacToe.play(board, index, TicTacToe.X)
-                                    playerTurn = false
+                                .clickable(enabled = value == TicTacToe.EMPTY && !over && (twoPlayer || playerTurn)) {
+                                    val mark = if (twoPlayer && !playerTurn) TicTacToe.O else TicTacToe.X
+                                    board = TicTacToe.play(board, index, mark)
+                                    playerTurn = !playerTurn
                                 },
                             contentAlignment = Alignment.Center,
                         ) {
@@ -422,113 +564,164 @@ fun TicTacToeScreen(onBack: () -> Unit) {
                 }
             }
         }
+        }
     }
 }
 
 /* ---------------------------- Word guess ---------------------------- */
 
 @Composable
-fun WordleScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
-    var answer by remember { mutableStateOf(Wordle.randomAnswer()) }
-    var guesses by remember { mutableStateOf(listOf<String>()) }
-    var current by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf<String?>(null) }
-    var streak by remember { mutableIntStateOf(0) }
+fun WordleScreen(
+    dayIndex: Long,
+    guesses: List<String>,
+    streak: Int,
+    best: Int,
+    onGuess: (String, Boolean) -> Unit,
+    onBack: () -> Unit,
+) {
+    val puzzle = remember(dayIndex) { Wordle.puzzleFor(dayIndex) }
+    val answer = puzzle.answer
+    // Only the slots the player types into; hint letters are never part of this.
+    var typed by remember(dayIndex) { mutableStateOf("") }
+    var message by remember(dayIndex) { mutableStateOf<String?>(null) }
+    var shake by remember(dayIndex) { mutableIntStateOf(0) }
+    var celebrate by remember { mutableStateOf(false) }
 
     val solved = guesses.lastOrNull() == answer
     val out = guesses.size >= Wordle.MAX_GUESSES && !solved
+    val finished = solved || out
+    val slots = remember(dayIndex) { Wordle.editableIndices(puzzle) }
 
     fun submit() {
-        val guess = current.uppercase()
-        if (guess.length < Wordle.LENGTH) return
+        if (finished) return
+        if (!Wordle.isComplete(typed, puzzle)) return
+        val guess = Wordle.assembleGuess(typed, puzzle)
         if (!Wordle.isAcceptable(guess)) {
             message = "Not in word list"
+            shake += 1
+            typed = ""
             return
         }
-        guesses = guesses + guess
-        current = ""
         message = null
-        if (guess == answer) {
-            streak += 1
-            onScore(streak)
-        }
+        typed = ""
+        val won = guess == answer
+        if (won) celebrate = true
+        onGuess(guess, won)
     }
 
-    fun restart() {
-        answer = Wordle.randomAnswer()
-        guesses = emptyList()
-        current = ""
-        message = null
-        if (out) streak = 0
-    }
-
-    GameFrame(
-        title = "Word Guess",
-        score = streak,
-        best = best,
-        onBack = onBack,
-        footer = {
-            when {
-                solved -> GameOverBanner("Got it!", ::restart)
-                out -> GameOverBanner("It was $answer", ::restart)
-                else -> Text(message?.uppercase() ?: "TAP LETTERS TO GUESS", style = BitsText.PixelBody)
-            }
-        },
-    ) {
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (rowIndex in 0 until Wordle.MAX_GUESSES) {
-                    val guess = guesses.getOrNull(rowIndex)
-                    val isCurrent = rowIndex == guesses.size && !solved && !out
-                    val marks = guess?.let { Wordle.mark(it, answer) }
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        for (i in 0 until Wordle.LENGTH) {
-                            val letter = when {
-                                guess != null -> guess[i].toString()
-                                isCurrent && i < current.length -> current[i].uppercase()
-                                else -> ""
-                            }
-                            val fill = when (marks?.getOrNull(i)) {
-                                LetterMark.CORRECT -> Color(0xFF7FD68A)
-                                LetterMark.PRESENT -> Arcade.Glow
-                                LetterMark.ABSENT -> Color(0xFF39434F)
-                                null -> Arcade.Panel
-                            }
-                            Box(
-                                Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f)
-                                    .background(Arcade.Border)
-                                    .padding(2.dp)
-                                    .background(fill),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    letter,
-                                    style = BitsText.PixelHeading.copy(
-                                        color = if (marks == null) BitsColors.Ink else Arcade.Screen,
-                                    ),
+    Box {
+        GameFrame(
+            title = "Word Guess",
+            score = streak,
+            best = best,
+            onBack = onBack,
+            footer = {
+                Column(Modifier.fillMaxWidth()) {
+                    when {
+                        solved -> Text(
+                            "SOLVED IN ${guesses.size} \u00b7 NEW WORD TOMORROW",
+                            style = BitsText.PixelBody.copy(color = Arcade.Glow),
+                        )
+                        out -> Text(
+                            "IT WAS $answer \u00b7 NEW WORD TOMORROW",
+                            style = BitsText.PixelBody.copy(color = BitsColors.Danger),
+                        )
+                        else -> Text(
+                            message?.uppercase() ?: "ONE LETTER IS FREE",
+                            style = BitsText.PixelBody,
+                        )
+                    }
+                }
+            },
+        ) {
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (rowIndex in 0 until Wordle.MAX_GUESSES) {
+                        val guess = guesses.getOrNull(rowIndex)
+                        val isCurrent = rowIndex == guesses.size && !finished
+                        val marks = guess?.let { Wordle.mark(it, answer) }
+                        val nudge by animateFloatAsState(
+                            targetValue = shake.toFloat(),
+                            animationSpec = tween(90),
+                            label = "shake",
+                        )
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .offset(x = if (isCurrent) (sin(nudge * 12f) * 5f).dp else 0.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            for (i in 0 until Wordle.LENGTH) {
+                                val isHint = i in puzzle.revealed
+                                // Where this column sits in the typed string, if it's typeable.
+                                val slotIndex = slots.indexOf(i)
+                                val letter = when {
+                                    guess != null -> guess[i].toString()
+                                    isHint -> answer[i].toString()
+                                    isCurrent && slotIndex in typed.indices -> typed[slotIndex].toString()
+                                    else -> ""
+                                }
+                                val fill = when (marks?.getOrNull(i)) {
+                                    LetterMark.CORRECT -> Color(0xFF7FD68A)
+                                    LetterMark.PRESENT -> Arcade.Glow
+                                    LetterMark.ABSENT -> Color(0xFF39434F)
+                                    null -> if (isHint) Color(0xFF24323F) else Arcade.Panel
+                                }
+                                val pop by animateFloatAsState(
+                                    targetValue = if (marks?.getOrNull(i) == LetterMark.CORRECT) 1f else 0f,
+                                    animationSpec = tween(260, delayMillis = i * 70),
+                                    label = "pop",
                                 )
+                                Box(
+                                    Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1f)
+                                        .scale(1f + pop * 0.07f)
+                                        .background(if (isHint && guess == null) Arcade.Glow else Arcade.Border)
+                                        .padding(2.dp)
+                                        .background(fill),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text(
+                                        letter,
+                                        style = BitsText.PixelHeading.copy(
+                                            color = when {
+                                                marks != null -> Arcade.Screen
+                                                isHint -> Arcade.Glow
+                                                else -> BitsColors.Ink
+                                            },
+                                        ),
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            Spacer(Modifier.weight(1f))
+                Spacer(Modifier.weight(1f))
 
-            if (!solved && !out) {
-                LetterKeyboard(
-                    guesses = guesses,
-                    answer = answer,
-                    onLetter = { if (current.length < Wordle.LENGTH) current += it },
-                    onDelete = { current = current.dropLast(1) },
-                    onEnter = ::submit,
-                )
+                if (!finished) {
+                    LetterKeyboard(
+                        guesses = guesses,
+                        answer = answer,
+                        onLetter = { if (typed.length < slots.size) typed += it },
+                        onDelete = { typed = typed.dropLast(1) },
+                        onEnter = ::submit,
+                    )
+                } else {
+                    // Nothing more to play today; the streak carries into tomorrow.
+                    Text(
+                        text = "COME BACK TOMORROW FOR A NEW PUZZLE",
+                        style = BitsText.PixelBody.copy(color = BitsColors.Muted),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
+                    )
+                }
             }
+        }
+
+        if (celebrate) {
+            ConfettiBurst(onFinished = { celebrate = false })
         }
     }
 }

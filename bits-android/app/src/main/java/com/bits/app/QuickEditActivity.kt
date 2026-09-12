@@ -47,6 +47,7 @@ import com.bits.app.data.addItem
 import com.bits.app.data.deleteItem
 import com.bits.app.data.editItem
 import com.bits.app.data.toggleItem
+import com.bits.app.ui.ArmedDelete
 import com.bits.app.ui.BitsCheckbox
 import com.bits.app.ui.TextAction
 import com.bits.app.ui.theme.BitsColors
@@ -211,7 +212,7 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
         if (!settled) {
             settled = true
             val text = value.text.trim()
-            if (text.isEmpty()) repository.edit { it.deleteItem(item.id) }
+            if (text.isEmpty()) repository.deleteItemWithUndo(item.id)
             else if (text != item.text) repository.edit { it.editItem(item.id, text) }
         }
         onDone()
@@ -234,9 +235,10 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
         }
         Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(BitsColors.Amber))
         Row(Modifier.padding(top = 4.dp)) {
-            TextAction("Delete", BitsColors.Danger) {
+            // Same two-tap delete as in the app, so the widget can't lose a task by accident.
+            ArmedDelete {
                 settled = true
-                repository.edit { it.deleteItem(item.id) }
+                repository.deleteItemWithUndo(item.id)
                 onDone()
             }
             Spacer(Modifier.weight(1f))

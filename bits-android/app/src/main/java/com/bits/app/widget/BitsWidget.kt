@@ -16,6 +16,7 @@ import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.AndroidRemoteViews
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.appWidgetBackground
@@ -72,26 +73,29 @@ class BitsWidget : GlanceAppWidget() {
         val repository = BitsRepository.get(context)
         repository.load()
         MidnightScheduler.schedule(context)
+        // Which widget this is, so Pro users can give each one its own list.
+        val appWidgetId = runCatching { GlanceAppWidgetManager(context).getAppWidgetId(id) }.getOrDefault(-1)
 
         provideContent {
             val state by repository.state.collectAsState()
             val current = state
             if (current != null) {
-                WidgetBody(context, current)
+                WidgetBody(context, current, appWidgetId)
             }
         }
     }
 }
 
 @Composable
-private fun WidgetBody(context: Context, state: BitsState) {
-    val theme = state.activeTheme
+private fun WidgetBody(context: Context, state: BitsState, appWidgetId: Int) {
+    val settings = state.settingsFor(appWidgetId)
+    val theme = state.themeFor(settings)
     val ink = Color(theme.ink)
     val done = Color(theme.doneColor)
     val accent = Color(theme.accent)
     val background = Color(theme.backgroundTint)
 
-    val categories = state.widgetCategories
+    val categories = state.categoriesFor(settings)
     val lines = buildList<WidgetLine> {
         categories.forEachIndexed { index, category ->
             add(WidgetLine.Header(category, index == 0))
@@ -104,14 +108,14 @@ private fun WidgetBody(context: Context, state: BitsState) {
         modifier = GlanceModifier
             .fillMaxSize()
             .appWidgetBackground()
-            .background(background.copy(alpha = state.widget.opacity))
+            .background(background.copy(alpha = settings.opacity))
             .cornerRadius(22.dp)
             // Extra end padding leaves a clear channel for the scrollbar, so long
             // item text is never drawn underneath it.
             .padding(start = 16.dp, end = 6.dp, top = 14.dp, bottom = 4.dp)
     ) {
-        if (state.widget.showClock) {
-            val (layout, heightDp) = clockLayout(state.activeClockStyle.id)
+        if (settings.showClock) {
+            val (layout, heightDp) = clockLayout(state.clockStyleFor(settings).id)
             AndroidRemoteViews(
                 remoteViews = RemoteViews(context.packageName, layout),
                 modifier = GlanceModifier.fillMaxWidth().height(heightDp.dp).padding(end = 10.dp),

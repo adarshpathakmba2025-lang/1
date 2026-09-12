@@ -14,13 +14,21 @@ data class FlappyState(
 ) {
     companion object {
         // A unitless 0..1 play area, so the same physics work at any screen size.
-        const val GRAVITY = 0.0016f
-        const val FLAP = -0.028f
-        const val PIPE_SPEED = 0.006f
-        const val GAP = 0.30f
-        const val BIRD_X = 0.28f
-        const val BIRD_SIZE = 0.055f
-        const val PIPE_WIDTH = 0.16f
+        //
+        // Tuned for control rather than twitchiness: a flap is a small nudge, gravity is
+        // gentle, and upward speed is capped so a tap can't fling the bird off the top.
+        // Terminal velocity keeps the fall readable, and slower pipes with a wider gap
+        // leave room to correct mid-flight.
+        const val GRAVITY = 0.00085f
+        const val FLAP = -0.0150f
+        const val MAX_RISE = -0.0150f
+        const val MAX_FALL = 0.0180f
+        const val PIPE_SPEED = 0.0042f
+        const val GAP = 0.38f
+        const val BIRD_X = 0.26f
+        const val BIRD_SIZE = 0.050f
+        const val PIPE_WIDTH = 0.14f
+        const val PIPE_SPACING = 0.62f
     }
 }
 
@@ -36,19 +44,22 @@ object FlappyBird {
 
     fun flap(state: FlappyState): FlappyState =
         if (state.dead) state
+        // Each tap sets a fixed, modest rise rather than adding to whatever speed
+        // the bird already had, so repeated taps can't compound into a rocket.
         else state.copy(velocity = FlappyState.FLAP, started = true)
 
     fun step(state: FlappyState, random: Random = Random.Default): FlappyState {
         if (state.dead || !state.started) return state
 
-        val velocity = state.velocity + FlappyState.GRAVITY
+        val velocity = (state.velocity + FlappyState.GRAVITY)
+            .coerceIn(FlappyState.MAX_RISE, FlappyState.MAX_FALL)
         val birdY = state.birdY + velocity
 
         val moved = state.pipes.map { it.copy(x = it.x - FlappyState.PIPE_SPEED) }
             .filter { it.x + FlappyState.PIPE_WIDTH > -0.05f }
-        val needsPipe = moved.isEmpty() || moved.maxOf { it.x } < 0.55f
+        val needsPipe = moved.isEmpty() || moved.maxOf { it.x } < FlappyState.PIPE_SPACING
         val pipes = if (needsPipe) {
-            moved + Pipe(x = 1.05f, gapTop = 0.12f + random.nextFloat() * (0.88f - FlappyState.GAP - 0.12f))
+            moved + Pipe(x = 1.05f, gapTop = 0.10f + random.nextFloat() * (0.90f - FlappyState.GAP - 0.10f))
         } else {
             moved
         }

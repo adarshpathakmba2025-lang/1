@@ -23,6 +23,7 @@ object Seed {
             lastRollover = today(),
             // Grocery list starts hidden, so new users see how the widget toggle works.
             widget = WidgetSettings.Default.copy(hiddenCategoryIds = setOf(GROCERY_ID)),
+            boards = emptyMap(),
             preferences = Preferences.Default,
         )
     }

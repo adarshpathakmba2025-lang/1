@@ -32,7 +32,7 @@ internal object StateJson {
 
         val root = JSONObject()
             .put("app", "bits")
-            .put("version", 4)
+            .put("version", 6)
             .put("lastRollover", state.lastRollover)
             .put("categories", categories)
             .put("items", items)
@@ -43,6 +43,19 @@ internal object StateJson {
                     .put("showClock", state.widget.showClock)
                     .put("hiddenCategoryIds", JSONArray(state.widget.hiddenCategoryIds.toList()))
             )
+            .put("boards", JSONObject().also { boards ->
+                state.boards.forEach { (appWidgetId, settings) ->
+                    boards.put(
+                        appWidgetId.toString(),
+                        JSONObject()
+                            .put("opacity", settings.opacity.toDouble())
+                            .put("showClock", settings.showClock)
+                            .put("hiddenCategoryIds", JSONArray(settings.hiddenCategoryIds.toList()))
+                            .put("themeIdOverride", settings.themeIdOverride)
+                            .put("clockStyleOverride", settings.clockStyleOverride)
+                    )
+                }
+            })
             .put(
                 "preferences",
                 JSONObject()
@@ -54,7 +67,13 @@ internal object StateJson {
                     .put("addToBottom", state.preferences.addToBottom)
                     .put("hideHintSeen", state.preferences.hideHintSeen)
                     .put("bonusThemeId", state.preferences.bonusThemeId)
+                    .put("bonusGameId", state.preferences.bonusGameId)
+                    .put("bonusClockId", state.preferences.bonusClockId)
+                    .put("wordleDay", state.preferences.wordleDay)
+                    .put("wordleGuesses", JSONArray(state.preferences.wordleGuesses))
+                    .put("wordleStreak", state.preferences.wordleStreak)
                     .put("easterEggUsed", state.preferences.easterEggUsed)
+                    .put("onboardingDone", state.preferences.onboardingDone)
                     .put("highScores", JSONObject(state.preferences.highScores.mapValues { it.value as Any }))
             )
         if (exportedAt != null) root.put("exportedAt", exportedAt)
@@ -93,6 +112,7 @@ internal object StateJson {
             items = items,
             lastRollover = root.optString("lastRollover", today()),
             widget = decodeWidget(root, categories),
+            boards = decodeBoards(root),
             preferences = decodePreferences(root),
         )
     }
@@ -122,6 +142,26 @@ internal object StateJson {
         )
     }
 
+    private fun decodeBoards(root: JSONObject): Map<Int, WidgetSettings> {
+        val json = root.optJSONObject("boards") ?: return emptyMap()
+        val result = mutableMapOf<Int, WidgetSettings>()
+        val keys = json.keys()
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val appWidgetId = key.toIntOrNull() ?: continue
+            val board = json.optJSONObject(key) ?: continue
+            val hidden = board.optJSONArray("hiddenCategoryIds") ?: JSONArray()
+            result[appWidgetId] = WidgetSettings(
+                opacity = board.optDouble("opacity", WidgetSettings.Default.opacity.toDouble()).toFloat(),
+                showClock = board.optBoolean("showClock", true),
+                hiddenCategoryIds = (0 until hidden.length()).map { hidden.getString(it) }.toSet(),
+                themeIdOverride = board.optString("themeIdOverride", ""),
+                clockStyleOverride = board.optString("clockStyleOverride", ""),
+            )
+        }
+        return result
+    }
+
     private fun decodePreferences(root: JSONObject): Preferences {
         val json = root.optJSONObject("preferences") ?: return Preferences.Default
         val scoresJson = json.optJSONObject("highScores") ?: JSONObject()
@@ -140,8 +180,17 @@ internal object StateJson {
             addToBottom = json.optBoolean("addToBottom", false),
             hideHintSeen = json.optBoolean("hideHintSeen", false),
             bonusThemeId = json.optString("bonusThemeId", ""),
+            bonusGameId = json.optString("bonusGameId", ""),
+            bonusClockId = json.optString("bonusClockId", ""),
             easterEggUsed = json.optBoolean("easterEggUsed", false),
+            // Anyone upgrading already has the app set up, so don't force them through onboarding.
+            onboardingDone = json.optBoolean("onboardingDone", true),
             highScores = highScores,
+            wordleDay = json.optLong("wordleDay", 0L),
+            wordleGuesses = (json.optJSONArray("wordleGuesses") ?: JSONArray()).let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }
+            },
+            wordleStreak = json.optInt("wordleStreak", 0),
         )
     }
 

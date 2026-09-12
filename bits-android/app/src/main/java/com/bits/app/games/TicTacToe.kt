@@ -37,6 +37,23 @@ object TicTacToe {
         else board.toMutableList().also { it[index] = player }
 
     /**
+     * Picks a move, occasionally on purpose letting the player through.
+     *
+     * [mistakeChance] is the probability of choosing a random legal move instead of the
+     * best one. At 0 this is perfect play; a small value makes the computer beatable
+     * now and then without ever feeling like it is throwing the game.
+     */
+    fun chooseMove(board: List<Int>, player: Int, mistakeChance: Float, random: kotlin.random.Random): Int {
+        val open = board.indices.filter { board[it] == EMPTY }
+        if (open.isEmpty()) return -1
+        // Never fumble a move that wins right now; a visible miss like that reads as broken.
+        val immediateWin = open.firstOrNull { winner(play(board, it, player)) == player }
+        if (immediateWin != null) return immediateWin
+        if (random.nextFloat() < mistakeChance) return open[random.nextInt(open.size)]
+        return bestMove(board, player)
+    }
+
+    /**
      * Perfect play via minimax. The computer never loses, so the best a player
      * can manage is a draw — which is the point of the classic game.
      *

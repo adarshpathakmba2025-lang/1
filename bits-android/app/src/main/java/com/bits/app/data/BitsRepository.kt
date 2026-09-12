@@ -39,6 +39,10 @@ class BitsRepository private constructor(context: Context) {
     private var writeJob: Job? = null
     private var widgetJob: Job? = null
 
+    /** The most recent deletion, kept in memory only, so it can be undone. */
+    private val _lastDeleted = MutableStateFlow<Item?>(null)
+    val lastDeleted: StateFlow<Item?> = _lastDeleted.asStateFlow()
+
     /** Loads from disk if needed and applies the day transition. */
     suspend fun load(): BitsState = withContext(dispatcher) { ensureLoaded() }
 
@@ -67,6 +71,37 @@ class BitsRepository private constructor(context: Context) {
             }
         }
         refreshWidgetsNow()
+    }
+
+    /** Deletes an item and remembers it, so the undo prompt can bring it back. */
+    fun deleteItemWithUndo(itemId: String) {
+        scope.launch {
+            val current = ensureLoaded()
+            val item = current.items.firstOrNull { it.id == itemId } ?: return@launch
+            _lastDeleted.value = item
+            val next = current.deleteItem(itemId)
+            _state.value = next
+            scheduleWrite()
+            scheduleWidgetRefresh()
+        }
+    }
+
+    fun undoDelete() {
+        scope.launch {
+            val item = _lastDeleted.value ?: return@launch
+            _lastDeleted.value = null
+            val current = ensureLoaded()
+            val next = current.restoreItem(item)
+            if (next != current) {
+                _state.value = next
+                scheduleWrite()
+                scheduleWidgetRefresh()
+            }
+        }
+    }
+
+    fun clearUndo() {
+        _lastDeleted.value = null
     }
 
     fun refresh() {
@@ -123,8 +158,13 @@ class BitsRepository private constructor(context: Context) {
         }
     }
 
-    fun restore(backup: BitsState) = edit {
-        Rollover.apply(backup.withTutorialSeen(true), today())
+    /**
+     * Brings back lists, categories and widget settings from a backup, but keeps this
+     * device's own entitlements. A hand-edited backup therefore can't grant Pro or
+     * easter-egg unlocks.
+     */
+    fun restore(backup: BitsState) = edit { device ->
+        Rollover.apply(backup.withTutorialSeen(true).withEntitlementsFrom(device), today())
     }
 
     suspend fun refreshWidgetsNow() {

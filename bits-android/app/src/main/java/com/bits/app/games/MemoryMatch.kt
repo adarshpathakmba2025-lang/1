@@ -2,16 +2,36 @@ package com.bits.app.games
 
 import kotlin.random.Random
 
+/** What a level's cards show. Each keeps the pixel look of the games section. */
+enum class MemoryDeck(val label: String) {
+    COLORS("Colours"),
+    NUMBERS("Numbers"),
+    LETTERS("Letters"),
+    FRUIT("Fruit"),
+    SHAPES("Shapes"),
+}
+
 data class MemoryCard(val id: Int, val symbol: Int, val faceUp: Boolean, val matched: Boolean)
 
-object MemoryMatch {
-    const val PAIRS = 8
+data class MemoryLevel(val number: Int, val deck: MemoryDeck, val pairs: Int, val cards: List<MemoryCard>)
 
-    fun newGame(random: Random = Random.Default): List<MemoryCard> {
-        val symbols = (0 until PAIRS).flatMap { listOf(it, it) }.shuffled(random)
-        return symbols.mapIndexed { index, symbol ->
+object MemoryMatch {
+    /** Levels cycle through the decks and widen the board as they go. */
+    fun deckFor(level: Int): MemoryDeck = MemoryDeck.entries[(level - 1).coerceAtLeast(0) % MemoryDeck.entries.size]
+
+    fun pairsFor(level: Int): Int = when {
+        level <= 1 -> 6
+        level <= 3 -> 8
+        else -> 10
+    }
+
+    fun newLevel(level: Int, random: Random = Random.Default): MemoryLevel {
+        val pairs = pairsFor(level)
+        val symbols = (0 until pairs).flatMap { listOf(it, it) }.shuffled(random)
+        val cards = symbols.mapIndexed { index, symbol ->
             MemoryCard(id = index, symbol = symbol, faceUp = false, matched = false)
         }
+        return MemoryLevel(number = level, deck = deckFor(level), pairs = pairs, cards = cards)
     }
 
     fun faceUpUnmatched(cards: List<MemoryCard>): List<MemoryCard> =

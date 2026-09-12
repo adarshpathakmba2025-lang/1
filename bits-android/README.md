@@ -1,70 +1,89 @@
 # Bits
 
-Your external brain, living on your home screen. Android prototype v0.4.
+Your external brain, living on your home screen. Android prototype v0.6.
 
-## Updating on your phone
+## Updating
 
-1. Upload these files to your `bits` GitHub repository, replacing the old ones, and commit.
-2. Open **Actions**, wait for the green tick, download **bits-apk**, install it over v0.3.
-3. Remove and re-add the widget so the launcher picks up the new preview and bigger icons.
+1. Upload these files to your `bits` repo, replacing the old ones. Commit.
+2. **Actions** → green tick → download **bits-apk** → install over v0.5.
+3. **Remove and re-add the widget** so the launcher refreshes its cached preview.
+   The launcher icon may also take a reboot or a launcher restart to update.
 
-Check Settings → About → Version says **0.4.0**. If it doesn't, you installed an older artifact.
+Settings → About → Version should read **0.6.0**.
 
-## New in v0.4
+## New in v0.6
 
-**Lists**
-- New items go to the **top** by default. Settings → Lists has a toggle for the bottom.
-- Items moving from Tomorrow at midnight land on **top** of Today.
-- **Swipe sideways** on a list to move between categories.
-- Back button now saves: leaving Edit, or a task you were typing, keeps the change.
-- Hiding a category just dims it. A one-time message explains what dimming means.
+**Logo** — the new bold amber tile with the dark pixel checkmark, as an adaptive icon
+(plus raster icons for Android 7 and older).
 
-**Widget**
-- Bigger controller, "Bits", and settings icons, and bigger checkboxes.
-- Long text no longer runs under the scrollbar.
-- Tapping a **category heading** opens a small add box, instead of the whole app.
-- Six clock styles (two free, four Pro).
-- Eight themes with full palettes and descriptive names, not just accent swaps.
+**Widget picker preview** — the picker prefers `previewLayout` over `previewImage` on
+Android 12+, and the old layout used a live `TextClock`, which the picker draws blank.
+It's now a plain image, which the picker can always render.
 
-**Games** — now its own retro pixel section with a high score per game.
-- Free: 2048, Snake
-- Pro: Memory Match, X and O, Word Guess, Flappy
+**Separate widget lists (Pro)** — each widget now has a full **Customise** panel:
+its own categories, clock style, theme and background opacity, or "Match app" to follow
+your main settings. Reset returns any widget to the shared look.
 
-**Pro**
-- Redesigned page with perks, and separate Lifetime (₹179) and Monthly (₹49) cards.
-- The founder note appears once before the page. Pro users get a thank-you instead of a pitch.
-- Restore purchases sits in Settings → About.
+**Word Guess — rebuilt as a daily puzzle**
+- One word per day, the same for the whole day, drawn from **223 words**.
+- The free letter can no longer be typed over: typing only ever fills the other four
+  slots, so the hint is structurally protected rather than just visually.
+- The free letter's position moves every day.
+- Solve it and you're done until tomorrow. Your streak carries over; skipping a day
+  resets it. Progress survives closing the app, so a loss can't be retried.
 
-**Settings** — rebuilt into labelled sections with cards.
+**Two-tap delete, everywhere** — the Delete button sits dim and inert. One tap arms it
+and turns it red for 3 seconds; a second tap inside that window deletes. Miss the window
+and it disarms. Works the same in the app and in the widget's floating card. A deletion
+then offers **Undo** for 5 seconds, and restores the task to its exact old position.
+
+**Snake** — added a retro direction pad. Swiping still works.
+
+**Settings** — widget previews no longer steal your scroll. They show a "Tap to scroll"
+badge and only become scrollable once tapped.
+
+**Long-press previews** — now works for unlocked themes and clock styles too, not just
+locked ones, and the hint text says so.
+
+**Easter egg** — now **4 taps** on the "Bits" title, and it grants **one theme, one game
+and one clock style**, picked together.
+
+**Pricing** — ₹229 lifetime, ₹49 monthly.
+
+## About protecting the Pro perks
+
+The easter egg itself is airtight: it's one atomic all-or-nothing claim, it refuses if any
+slot is already filled or if any pick is a free item, and 223 tests include spamming the
+claim 50 times and confirming only one set is ever granted.
+
+One hole is now closed that was open before: **restoring a backup no longer grants Pro or
+easter-egg unlocks.** Entitlements belong to the device, so a hand-edited backup file
+can't be used to unlock anything. Lists and settings still restore normally.
+
+**The honest limit:** Bits is fully offline, so all state lives in a file on the user's
+own device. Anyone willing to root their phone or decompile the APK can change it. No
+offline app can prevent that — only server-side or Play Billing verification can, which is
+what wiring up real billing will give you. The above stops casual sharing and
+backup-editing, which is the realistic threat.
 
 ## Not live yet
 
-- **Payments.** Play Billing needs a merchant account and a Play Console listing first.
-  To test Pro features: Settings → Developer → **Simulate Pro**.
-- **A second widget list.** Shown as "coming soon" on the Pro page; it needs its own data model.
-
-## There's a hidden thing
-
-Tap the "Bits" title on the home page six times in a row. One free theme, once per device.
-Don't tell anyone. The developer switch does not reset it, so test it deliberately.
-
-## If the build fails
-
-Open the failed run, click the red step, copy the lines starting with `e:`, and send them to Claude.
+**Payments.** Test Pro via Settings → Developer → **Simulate Pro**.
 
 ## Before publishing
 
-- Change `applicationId` in `app/build.gradle.kts` to one you own. Rate Bits uses it.
+- Change `applicationId` to one you own. Rate Bits uses it.
 - Delete the Developer section in `SettingsScreen.kt`.
-- Create a real release signing key; the bundled one is for testing.
-- Wire Play Billing so `isPro` comes from a verified purchase.
-- Press Start 2P, Chakra Petch and Atkinson Hyperlegible are all open-licensed; keep their licences with the app.
+- Make a real release signing key.
+- Wire Play Billing so `isPro` comes from a verified purchase, and use Play Console
+  **License Testing** to comp yourself and close friends.
+- Keep the font licences: Press Start 2P, Chakra Petch, Atkinson Hyperlegible.
 
 ## Project layout
 
-- `data/` model, the midnight move, storage, backups, themes and clock styles
-- `games/` pure game rules (2048, Snake, Memory, X and O, Word Guess, Flappy), all unit-tested
+- `data/` model, midnight move, storage, backups, themes, clocks, per-widget boards
+- `games/` pure game rules, unit-tested (223 checks pass)
 - `widget/` the home screen widget (Jetpack Glance)
-- `time/` wakes the app after midnight, on reboot, and on time zone changes
-- `ui/` app screens, retro games chrome, Pro page, tour
+- `time/` wakes the app after midnight, on reboot, on time zone changes
+- `ui/` screens, onboarding, retro games, Pro page, tour, armed delete
 - `QuickEditActivity.kt` the floating add/edit card opened from the widget

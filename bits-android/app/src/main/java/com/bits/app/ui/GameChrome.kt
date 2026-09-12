@@ -21,8 +21,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.bits.app.games.Direction
 import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
 
@@ -90,6 +93,49 @@ fun PixelButton(
                 .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         )
+    }
+}
+
+/** A blocky retro direction pad. Sits alongside swiping rather than replacing it. */
+@Composable
+fun PixelDpad(onMove: (Direction) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        DpadKey("\u25B2", "Up") { onMove(Direction.UP) }
+        Row {
+            DpadKey("\u25C0", "Left") { onMove(Direction.LEFT) }
+            Spacer(Modifier.width(52.dp))
+            DpadKey("\u25B6", "Right") { onMove(Direction.RIGHT) }
+        }
+        DpadKey("\u25BC", "Down") { onMove(Direction.DOWN) }
+    }
+}
+
+@Composable
+private fun DpadKey(glyph: String, description: String, onClick: () -> Unit) {
+    Box(Modifier.size(52.dp)) {
+        // Offset block behind each key, for the moulded-plastic arcade look.
+        Box(
+            Modifier
+                .padding(start = 3.dp, top = 3.dp)
+                .matchParentSize()
+                .background(Color(0x99000000))
+        )
+        Box(
+            Modifier
+                .padding(end = 3.dp, bottom = 3.dp)
+                .matchParentSize()
+                .background(Arcade.Border)
+                .padding(2.dp)
+                .background(Arcade.Panel)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = glyph,
+                style = BitsText.PixelBody.copy(color = BitsColors.Ink),
+                modifier = Modifier.semantics { contentDescription = description },
+            )
+        }
     }
 }
 

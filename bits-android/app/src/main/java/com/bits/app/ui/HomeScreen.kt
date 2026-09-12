@@ -76,7 +76,6 @@ import com.bits.app.data.TOMORROW_ID
 import com.bits.app.data.addCategory
 import com.bits.app.data.addItem
 import com.bits.app.data.deleteCategory
-import com.bits.app.data.deleteItem
 import com.bits.app.data.editItem
 import com.bits.app.data.isSystemCategory
 import com.bits.app.data.renameCategory
@@ -432,7 +431,7 @@ private fun CategoryPanel(
                             ),
                             onToggle = { repository.edit { s -> s.toggleItem(item.id) } },
                             onEdit = { text -> repository.edit { s -> s.editItem(item.id, text) } },
-                            onDelete = { repository.edit { s -> s.deleteItem(item.id) } },
+                            onDelete = { repository.deleteItemWithUndo(item.id) },
                         )
                     }
                 }
@@ -568,7 +567,8 @@ private fun EditField(
         )
         Row {
             TextAction("Save", BitsColors.Ink, save)
-            TextAction("Delete", BitsColors.Danger) {
+            // Two taps to delete, so a slip never loses a task.
+            ArmedDelete {
                 finished = true
                 onDelete()
             }

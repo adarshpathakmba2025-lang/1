@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,74 +48,149 @@ private data class Confetto(val x: Float, val delay: Float, val drift: Float, va
  * The easter-egg reward: pick one paid theme to keep, free, forever.
  * Only reachable once per device.
  */
+/**
+ * The easter-egg reward: one theme, one game and one clock style, chosen together.
+ *
+ * Nothing is granted until all three are picked and Claim is tapped, and the claim is a
+ * single atomic edit, so there is no way to take one reward now and come back for more.
+ */
 @Composable
-fun ThemeUnlockDialog(onPick: (WidgetTheme) -> Unit, onDismiss: () -> Unit) {
-    var chosen by remember { mutableStateOf<WidgetTheme?>(null) }
-    val lockedThemes = remember { WidgetThemes.all.filterNot { it.free } }
+fun EasterEggDialog(
+    lockedThemes: List<WidgetTheme>,
+    lockedGames: List<Pair<String, String>>,
+    lockedClocks: List<Pair<String, String>>,
+    onClaim: (themeId: String, gameId: String, clockId: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var theme by remember { mutableStateOf<String?>(null) }
+    var game by remember { mutableStateOf<String?>(null) }
+    var clock by remember { mutableStateOf<String?>(null) }
+    val ready = theme != null && game != null && clock != null
 
     Dialog(onDismissRequest = onDismiss) {
-        Box {
-            Column(
-                Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(BitsColors.PanelBase)
-                    .padding(22.dp)
-            ) {
-                Text("\u2728 You found something", style = BitsText.Subtitle.copy(color = BitsColors.Amber))
-                Text(
-                    text = "Nice tapping. Pick any one theme below and it's yours to keep \u2014 free, forever. Just the one, though!",
-                    style = BitsText.Body,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-                Spacer(Modifier.height(16.dp))
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(BitsColors.PanelBase)
+                .verticalScroll(rememberScrollState())
+                .padding(22.dp)
+        ) {
+            Text("\u2728 You found something", style = BitsText.Subtitle.copy(color = BitsColors.Amber))
+            Text(
+                text = "Nice tapping. Pick one theme, one game and one clock style \u2014 yours to keep, free. One of each, one time only.",
+                style = BitsText.Body,
+                modifier = Modifier.padding(top = 8.dp),
+            )
 
+            PickerBlock("Theme") {
                 lockedThemes.chunked(2).forEach { pair ->
-                    Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        pair.forEach { theme ->
-                            val selected = chosen?.id == theme.id
-                            Column(
-                                Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(theme.backgroundTint))
-                                    .border(
-                                        width = if (selected) 2.dp else 1.dp,
-                                        color = if (selected) Color(theme.accent) else BitsColors.Muted.copy(alpha = 0.25f),
-                                        shape = RoundedCornerShape(12.dp),
-                                    )
-                                    .clickable { chosen = theme }
-                                    .padding(11.dp)
-                            ) {
-                                Text(theme.displayName, style = BitsText.Small.copy(color = Color(theme.ink)))
-                                Spacer(Modifier.height(7.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    listOf(theme.accent, theme.ink, theme.doneColor).forEach { swatch ->
-                                        Box(
-                                            Modifier
-                                                .weight(1f)
-                                                .height(12.dp)
-                                                .clip(RoundedCornerShape(3.dp))
-                                                .background(Color(swatch))
-                                        )
-                                    }
-                                }
-                            }
+                    Row(Modifier.padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        pair.forEach { option ->
+                            SwatchOption(
+                                label = option.displayName,
+                                selected = theme == option.id,
+                                background = Color(option.backgroundTint),
+                                accent = Color(option.accent),
+                                ink = Color(option.ink),
+                                modifier = Modifier.weight(1f),
+                            ) { theme = option.id }
                         }
                         if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
+            }
 
-                Row(Modifier.padding(top = 10.dp).fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    val pick = chosen
-                    if (pick == null) {
-                        Text("Pick one to continue", style = BitsText.Small, modifier = Modifier.padding(12.dp))
-                    } else {
-                        FilledAction("Keep ${pick.displayName}") { onPick(pick) }
+            PickerBlock("Game") {
+                lockedGames.chunked(2).forEach { pair ->
+                    Row(Modifier.padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        pair.forEach { (id, label) ->
+                            PlainOption(label, game == id, Modifier.weight(1f)) { game = id }
+                        }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
+                }
+            }
+
+            PickerBlock("Clock style") {
+                lockedClocks.chunked(2).forEach { pair ->
+                    Row(Modifier.padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        pair.forEach { (id, label) ->
+                            PlainOption(label, clock == id, Modifier.weight(1f)) { clock = id }
+                        }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+
+            Row(Modifier.padding(top = 14.dp).fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (!ready) {
+                    Text("Pick one of each", style = BitsText.Small, modifier = Modifier.padding(12.dp))
+                } else {
+                    FilledAction("Claim all three") { onClaim(theme!!, game!!, clock!!) }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PickerBlock(title: String, content: @Composable () -> Unit) {
+    Text(
+        text = title.uppercase(),
+        style = BitsText.Small.copy(color = BitsColors.Muted),
+        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
+    )
+    content()
+}
+
+@Composable
+private fun SwatchOption(
+    label: String,
+    selected: Boolean,
+    background: Color,
+    accent: Color,
+    ink: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(11.dp))
+            .background(background)
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) accent else BitsColors.Muted.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(11.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(10.dp)
+    ) {
+        Text(label, style = BitsText.Small.copy(color = ink))
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            listOf(accent, ink).forEach {
+                Box(Modifier.weight(1f).height(10.dp).clip(RoundedCornerShape(3.dp)).background(it))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlainOption(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = BitsText.Small.copy(color = if (selected) BitsColors.Amber else BitsColors.Ink),
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) BitsColors.Amber.copy(alpha = 0.16f) else BitsColors.Bg)
+            .border(
+                width = if (selected) 1.5.dp else 1.dp,
+                color = if (selected) BitsColors.Amber else BitsColors.Muted.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(10.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+    )
 }
 
 /** A short burst of falling pixels. Purely decorative, and it stops on its own. */
