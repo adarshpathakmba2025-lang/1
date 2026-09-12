@@ -273,7 +273,30 @@ private val memoryPalette = listOf(
     Color(0xFF8FD694), Color(0xFFE8907F),
 )
 
-private val fruitGlyphs = listOf("\uD83C\uDF4E", "\uD83C\uDF4C", "\uD83C\uDF47", "\uD83C\uDF53", "\uD83C\uDF4A", "\uD83C\uDF49", "\uD83C\uDF52", "\uD83C\uDF51", "\uD83C\uDF50", "\uD83E\uDD5D")
+private val fruitGlyphs = listOf("\uD83C\uDF4E","\uD83C\uDF4C","\uD83C\uDF47","\uD83C\uDF53","\uD83C\uDF4A","\uD83C\uDF49","\uD83C\uDF52","\uD83C\uDF51","\uD83C\uDF50","\uD83E\uDD5D")
+private val foodGlyphs = listOf("\uD83C\uDF55","\uD83C\uDF54","\uD83C\uDF5C","\uD83C\uDF69","\uD83C\uDF71","\uD83E\uDDC7","\uD83C\uDF2E","\uD83C\uDF67","\uD83E\uDD68","\uD83C\uDF7F")
+private val animalGlyphs = listOf("\uD83D\uDC31","\uD83D\uDC36","\uD83E\uDD8A","\uD83D\uDC3C","\uD83D\uDC38","\uD83E\uDD89","\uD83D\uDC22","\uD83E\uDD80","\uD83D\uDC1D","\uD83E\uDD84")
+private val flagGlyphs = listOf("\uD83C\uDDEE\uD83C\uDDF3","\uD83C\uDDEF\uD83C\uDDF5","\uD83C\uDDE7\uD83C\uDDF7","\uD83C\uDDE8\uD83C\uDDE6","\uD83C\uDDEB\uD83C\uDDF7","\uD83C\uDDE9\uD83C\uDDEA","\uD83C\uDDEE\uD83C\uDDF9","\uD83C\uDDF0\uD83C\uDDF7","\uD83C\uDDF2\uD83C\uDDFD","\uD83C\uDDE6\uD83C\uDDFA")
+private val spaceGlyphs = listOf("\uD83D\uDE80","\uD83E\uDE90","\u2B50","\uD83C\uDF0D","\uD83C\uDF19","\u2604\uFE0F","\uD83D\uDEF8","\uD83C\uDF0C","\uD83D\uDD2D","\uD83D\uDC7D")
+private val weatherGlyphs = listOf("\u2600\uFE0F","\u26C5","\u2601\uFE0F","\uD83C\uDF27\uFE0F","\u26C8\uFE0F","\u2744\uFE0F","\uD83C\uDF2A\uFE0F","\uD83C\uDF08","\uD83D\uDD25","\uD83D\uDCA7")
+private val codeLabels = listOf("2U","9A","7K","4Z","6M","3Q","8R","5T","1B","0X")
+
+/** Every glyph deck, used by the jumbled round. */
+private val glyphDecks = listOf(fruitGlyphs, foodGlyphs, animalGlyphs, flagGlyphs, spaceGlyphs, weatherGlyphs)
+
+/** Picks a face for a card. Jumbled rounds vary the deck per symbol, deterministically. */
+private fun glyphFor(deck: MemoryDeck, symbol: Int): String? = when (deck) {
+    MemoryDeck.FRUIT -> fruitGlyphs[symbol % fruitGlyphs.size]
+    MemoryDeck.FOOD -> foodGlyphs[symbol % foodGlyphs.size]
+    MemoryDeck.ANIMALS -> animalGlyphs[symbol % animalGlyphs.size]
+    MemoryDeck.FLAGS -> flagGlyphs[symbol % flagGlyphs.size]
+    MemoryDeck.SPACE -> spaceGlyphs[symbol % spaceGlyphs.size]
+    MemoryDeck.WEATHER -> weatherGlyphs[symbol % weatherGlyphs.size]
+    MemoryDeck.CODES -> codeLabels[symbol % codeLabels.size]
+    // Same symbol always maps to the same deck, so a pair still matches visually.
+    MemoryDeck.JUMBLED -> glyphDecks[symbol % glyphDecks.size][(symbol * 3) % 10]
+    else -> null
+}
 
 @Composable
 fun MemoryScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
@@ -322,12 +345,9 @@ fun MemoryScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
             onBack = onBack,
             footer = {
                 if (complete) {
-                    GameOverBanner("Level $level cleared") { start(level + 1) }
+                    GameOverBanner("Cleared in $moves moves") { start(level + 1) }
                 } else {
-                    Text(
-                        "LEVEL $level \u00b7 ${deal.deck.label.uppercase()}",
-                        style = BitsText.PixelBody,
-                    )
+                    Text(deal.deck.label.uppercase(), style = BitsText.PixelBody)
                 }
             },
         ) {
@@ -377,6 +397,7 @@ private fun MemoryTile(card: MemoryCard, deck: MemoryDeck, modifier: Modifier, o
             .clickable(enabled = !revealed, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
+        val glyph = glyphFor(deck, card.symbol)
         when {
             !revealed -> Text("?", style = BitsText.PixelHeading.copy(color = BitsColors.Muted))
             deck == MemoryDeck.COLORS -> Unit
@@ -388,8 +409,13 @@ private fun MemoryTile(card: MemoryCard, deck: MemoryDeck, modifier: Modifier, o
                 ('A' + card.symbol).toString(),
                 style = BitsText.PixelHeading.copy(color = colour.copy(alpha = alpha)),
             )
-            deck == MemoryDeck.FRUIT -> Text(
-                fruitGlyphs[card.symbol % fruitGlyphs.size],
+            deck == MemoryDeck.SHAPES -> PixelShape(index = card.symbol, colour = colour.copy(alpha = alpha))
+            deck == MemoryDeck.CODES -> Text(
+                glyph.orEmpty(),
+                style = BitsText.PixelBody.copy(color = colour.copy(alpha = alpha)),
+            )
+            glyph != null -> Text(
+                glyph,
                 style = BitsText.PixelHeading.copy(color = Color.White.copy(alpha = alpha)),
             )
             else -> PixelShape(index = card.symbol, colour = colour.copy(alpha = alpha))
@@ -576,26 +602,35 @@ fun WordleScreen(
     guesses: List<String>,
     streak: Int,
     best: Int,
+    hintPoints: Int,
+    purchased: Set<Int>,
     onGuess: (String, Boolean) -> Unit,
+    onBuyReveal: (Int) -> Unit,
+    onPeek: () -> Unit,
     onBack: () -> Unit,
 ) {
     val puzzle = remember(dayIndex) { Wordle.puzzleFor(dayIndex) }
     val answer = puzzle.answer
-    // Only the slots the player types into; hint letters are never part of this.
     var typed by remember(dayIndex) { mutableStateOf("") }
     var message by remember(dayIndex) { mutableStateOf<String?>(null) }
     var shake by remember(dayIndex) { mutableIntStateOf(0) }
     var celebrate by remember { mutableStateOf(false) }
+    var showHelp by remember { mutableStateOf(true) }
+    var pickingReveal by remember { mutableStateOf(false) }
 
     val solved = guesses.lastOrNull() == answer
     val out = guesses.size >= Wordle.MAX_GUESSES && !solved
     val finished = solved || out
-    val slots = remember(dayIndex) { Wordle.editableIndices(puzzle) }
+    // Recomputed as letters are bought, so typing always targets the right slots.
+    val slots = Wordle.editableIndices(puzzle, purchased)
+    val shown = Wordle.shownIndices(puzzle, purchased)
+
+    // A bought letter shrinks the typing area, so trim anything now too long.
+    LaunchedEffect(slots.size) { if (typed.length > slots.size) typed = typed.take(slots.size) }
 
     fun submit() {
-        if (finished) return
-        if (!Wordle.isComplete(typed, puzzle)) return
-        val guess = Wordle.assembleGuess(typed, puzzle)
+        if (finished || !Wordle.isComplete(typed, puzzle, purchased)) return
+        val guess = Wordle.assembleGuess(typed, puzzle, purchased)
         if (!Wordle.isAcceptable(guess)) {
             message = "Not in word list"
             shake += 1
@@ -618,23 +653,37 @@ fun WordleScreen(
             footer = {
                 Column(Modifier.fillMaxWidth()) {
                     when {
-                        solved -> Text(
-                            "SOLVED IN ${guesses.size} \u00b7 NEW WORD TOMORROW",
-                            style = BitsText.PixelBody.copy(color = Arcade.Glow),
-                        )
-                        out -> Text(
-                            "IT WAS $answer \u00b7 NEW WORD TOMORROW",
-                            style = BitsText.PixelBody.copy(color = BitsColors.Danger),
-                        )
-                        else -> Text(
-                            message?.uppercase() ?: "ONE LETTER IS FREE",
-                            style = BitsText.PixelBody,
-                        )
+                        solved -> Text("SOLVED IN ${guesses.size} \u00b7 +1 HINT POINT", style = BitsText.PixelBody.copy(color = Arcade.Glow))
+                        out -> Text("IT WAS $answer \u00b7 NEW WORD TOMORROW", style = BitsText.PixelBody.copy(color = BitsColors.Danger))
+                        pickingReveal -> Text("TAP A BOX TO REVEAL IT", style = BitsText.PixelBody.copy(color = Arcade.Glow))
+                        else -> Text(message?.uppercase() ?: "SOME LETTERS COME FREE", style = BitsText.PixelBody)
                     }
                 }
             },
         ) {
-            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (showHelp) {
+                    HowToPlayBox(onDismiss = { showHelp = false })
+                }
+
+                HintBar(
+                    points = hintPoints,
+                    canPeek = !finished && hintPoints >= Wordle.PEEK_COST,
+                    canReveal = !finished && hintPoints >= Wordle.REVEAL_COST &&
+                        Wordle.revealableIndices(puzzle, purchased).isNotEmpty(),
+                    picking = pickingReveal,
+                    onPeek = {
+                        val letter = Wordle.peekLetter(puzzle, guesses, purchased)
+                        if (letter == null) {
+                            message = "Nothing left to hint"
+                        } else {
+                            onPeek()
+                            message = "$letter is in the word"
+                        }
+                    },
+                    onStartReveal = { pickingReveal = !pickingReveal },
+                )
+
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (rowIndex in 0 until Wordle.MAX_GUESSES) {
                         val guess = guesses.getOrNull(rowIndex)
@@ -652,12 +701,12 @@ fun WordleScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
                             for (i in 0 until Wordle.LENGTH) {
-                                val isHint = i in puzzle.revealed
-                                // Where this column sits in the typed string, if it's typeable.
+                                val isShown = i in shown
+                                val isBought = i in purchased
                                 val slotIndex = slots.indexOf(i)
                                 val letter = when {
                                     guess != null -> guess[i].toString()
-                                    isHint -> answer[i].toString()
+                                    isShown -> answer[i].toString()
                                     isCurrent && slotIndex in typed.indices -> typed[slotIndex].toString()
                                     else -> ""
                                 }
@@ -665,21 +714,35 @@ fun WordleScreen(
                                     LetterMark.CORRECT -> Color(0xFF7FD68A)
                                     LetterMark.PRESENT -> Arcade.Glow
                                     LetterMark.ABSENT -> Color(0xFF39434F)
-                                    null -> if (isHint) Color(0xFF24323F) else Arcade.Panel
+                                    null -> if (isShown) Color(0xFF24323F) else Arcade.Panel
                                 }
                                 val pop by animateFloatAsState(
                                     targetValue = if (marks?.getOrNull(i) == LetterMark.CORRECT) 1f else 0f,
                                     animationSpec = tween(260, delayMillis = i * 70),
                                     label = "pop",
                                 )
+                                val revealTarget = pickingReveal && rowIndex == guesses.size && !isShown
                                 Box(
                                     Modifier
                                         .weight(1f)
                                         .aspectRatio(1f)
                                         .scale(1f + pop * 0.07f)
-                                        .background(if (isHint && guess == null) Arcade.Glow else Arcade.Border)
+                                        .background(
+                                            when {
+                                                revealTarget -> Color(0xFF7FD68A)
+                                                isShown && guess == null -> Arcade.Glow
+                                                else -> Arcade.Border
+                                            }
+                                        )
                                         .padding(2.dp)
-                                        .background(fill),
+                                        .background(fill)
+                                        .then(
+                                            if (revealTarget) Modifier.clickable {
+                                                onBuyReveal(i)
+                                                pickingReveal = false
+                                                message = null
+                                            } else Modifier
+                                        ),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
@@ -687,7 +750,8 @@ fun WordleScreen(
                                         style = BitsText.PixelHeading.copy(
                                             color = when {
                                                 marks != null -> Arcade.Screen
-                                                isHint -> Arcade.Glow
+                                                isBought -> Color(0xFF7FD68A)
+                                                isShown -> Arcade.Glow
                                                 else -> BitsColors.Ink
                                             },
                                         ),
@@ -709,7 +773,6 @@ fun WordleScreen(
                         onEnter = ::submit,
                     )
                 } else {
-                    // Nothing more to play today; the streak carries into tomorrow.
                     Text(
                         text = "COME BACK TOMORROW FOR A NEW PUZZLE",
                         style = BitsText.PixelBody.copy(color = BitsColors.Muted),
@@ -724,6 +787,74 @@ fun WordleScreen(
             ConfettiBurst(onFinished = { celebrate = false })
         }
     }
+}
+
+/** The one-off instruction panel, in the same arcade frame as everything else here. */
+@Composable
+private fun HowToPlayBox(onDismiss: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(Arcade.Border)
+            .padding(2.dp)
+            .background(Arcade.Panel)
+            .padding(12.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("ONE WORD A DAY", style = BitsText.PixelBody.copy(color = Arcade.Glow))
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Guess the word in six tries. A letter or two comes free. Solve it to earn a hint point.",
+                style = BitsText.PixelBody.copy(color = BitsColors.Muted),
+            )
+        }
+        Text(
+            "X",
+            style = BitsText.PixelBody.copy(color = BitsColors.Muted),
+            modifier = Modifier.clickable(onClick = onDismiss).padding(6.dp),
+        )
+    }
+}
+
+/** Shows the hint balance and what it can buy. */
+@Composable
+private fun HintBar(
+    points: Int,
+    canPeek: Boolean,
+    canReveal: Boolean,
+    picking: Boolean,
+    onPeek: () -> Unit,
+    onStartReveal: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "HINTS $points",
+            style = BitsText.PixelBody.copy(color = if (points > 0) Arcade.Glow else BitsColors.Muted),
+            modifier = Modifier.weight(1f),
+        )
+        HintChip("LETTER \u00b7 ${Wordle.PEEK_COST}", canPeek, false, onPeek)
+        Spacer(Modifier.width(6.dp))
+        HintChip("REVEAL \u00b7 ${Wordle.REVEAL_COST}", canReveal, picking, onStartReveal)
+    }
+}
+
+@Composable
+private fun HintChip(label: String, enabled: Boolean, active: Boolean, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = BitsText.PixelBody.copy(
+            color = when {
+                active -> Arcade.Screen
+                enabled -> BitsColors.Ink
+                else -> BitsColors.Muted.copy(alpha = 0.5f)
+            }
+        ),
+        modifier = Modifier
+            .background(if (active) Arcade.Glow else Arcade.Panel)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+    )
 }
 
 @Composable

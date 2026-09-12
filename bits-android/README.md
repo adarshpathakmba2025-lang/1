@@ -1,88 +1,78 @@
 # Bits
 
-Your external brain, living on your home screen. Android prototype v0.6.
+Your external brain, living on your home screen. Android prototype v0.7.
 
 ## Updating
 
-1. Upload these files to your `bits` repo, replacing the old ones. Commit.
-2. **Actions** → green tick → download **bits-apk** → install over v0.5.
-3. **Remove and re-add the widget** so the launcher refreshes its cached preview.
-   The launcher icon may also take a reboot or a launcher restart to update.
+1. Upload these files to your repo, replacing the old ones. Commit.
+2. **Actions** -> green tick -> download **bits-apk** -> install over v0.6.
+3. Remove and re-add the widget. The **app icon** has changed, so a reboot or launcher
+   restart may be needed before the new one appears.
 
-Settings → About → Version should read **0.6.0**.
+Settings -> About -> Version should read **0.7.0**.
 
-## New in v0.6
+## New in v0.7
 
-**Logo** — the new bold amber tile with the dark pixel checkmark, as an adaptive icon
-(plus raster icons for Android 7 and older).
+**New logo** - a cream tile with a navy pixel checklist and an amber tick on the completed
+row. Chosen over the darker and bolder options because it was the only one that kept its
+structure at real launcher size (48px), where dim rows on dark tiles turn to mush.
 
-**Widget picker preview** — the picker prefers `previewLayout` over `previewImage` on
-Android 12+, and the old layout used a live `TextClock`, which the picker draws blank.
-It's now a plain image, which the picker can always render.
+**Delete** - the armed state now reads **Confirm?**. Deleting from the widget keeps the
+floating card open for a few seconds to offer **Undo**, since the app's own undo bar can
+never be seen when the action came from the widget.
 
-**Separate widget lists (Pro)** — each widget now has a full **Customise** panel:
-its own categories, clock style, theme and background opacity, or "Match app" to follow
-your main settings. Reset returns any widget to the shared look.
+**Second and later widgets** - each now has a full **Customise** panel: its own
+categories, its own clock style and theme, its own opacity, and a field to create a brand
+new category that appears on that widget only.
 
-**Word Guess — rebuilt as a daily puzzle**
-- One word per day, the same for the whole day, drawn from **223 words**.
-- The free letter can no longer be typed over: typing only ever fills the other four
-  slots, so the hint is structurally protected rather than just visually.
-- The free letter's position moves every day.
-- Solve it and you're done until tomorrow. Your streak carries over; skipping a day
-  resets it. Progress survives closing the app, so a loss can't be retried.
+**Word Guess**
+- **309 words**, deduplicated.
+- Free letters are now properly scattered: position varies day to day, and the count is
+  usually one, sometimes two, so it never settles into a pattern.
+- **Hint points.** Solve the daily puzzle to earn one. They accumulate.
+  Spend **1** to be told a letter that's in the word; spend **5** to reveal a whole box of
+  your choosing. Bought letters are protected from typing exactly like free ones.
+- A short pixel-styled instruction panel on first open, dismissable.
 
-**Two-tap delete, everywhere** — the Delete button sits dim and inert. One tap arms it
-and turns it red for 3 seconds; a second tap inside that window deletes. Miss the window
-and it disarms. Works the same in the app and in the widget's floating card. A deletion
-then offers **Undo** for 5 seconds, and restores the task to its exact old position.
+**Memory Match** - now 12 deck types: colours, numbers, letters, shapes, fruit, food,
+animals, flags, space, weather, codes (2U / 9A style pairs), and a jumbled round that
+mixes decks together. Decks are picked at random per round, and the level tag is gone.
 
-**Snake** — added a retro direction pad. Swiping still works.
+**Checkboxes** - squared off rather than rounded, and aligned to the first line of text so
+multi-line items stay tidy.
 
-**Settings** — widget previews no longer steal your scroll. They show a "Tap to scroll"
-badge and only become scrollable once tapped.
+**Widget previews in Settings** - hand scrolling back automatically 15 seconds after being
+tapped, so the settings page never stays awkward to navigate.
 
-**Long-press previews** — now works for unlocked themes and clock styles too, not just
-locked ones, and the hint text says so.
+**Founder note** - rebuilt in the arcade styling used by the games section, with the text
+broken into short readable paragraphs.
 
-**Easter egg** — now **4 taps** on the "Bits" title, and it grants **one theme, one game
-and one clock style**, picked together.
+## Protecting the Pro perks
 
-**Pricing** — ₹229 lifetime, ₹49 monthly.
+The easter egg is one atomic all-or-nothing claim and refuses if any slot is filled or any
+pick is a free item. Restoring a backup never grants Pro or unlocks, because entitlements
+belong to the device.
 
-## About protecting the Pro perks
-
-The easter egg itself is airtight: it's one atomic all-or-nothing claim, it refuses if any
-slot is already filled or if any pick is a free item, and 223 tests include spamming the
-claim 50 times and confirming only one set is ever granted.
-
-One hole is now closed that was open before: **restoring a backup no longer grants Pro or
-easter-egg unlocks.** Entitlements belong to the device, so a hand-edited backup file
-can't be used to unlock anything. Lists and settings still restore normally.
-
-**The honest limit:** Bits is fully offline, so all state lives in a file on the user's
-own device. Anyone willing to root their phone or decompile the APK can change it. No
-offline app can prevent that — only server-side or Play Billing verification can, which is
-what wiring up real billing will give you. The above stops casual sharing and
-backup-editing, which is the realistic threat.
+**The honest limit:** Bits is fully offline, so all state is a file on the user's device.
+Anyone willing to root their phone or decompile the APK can change it. Only server-side or
+Play Billing verification prevents that.
 
 ## Not live yet
 
-**Payments.** Test Pro via Settings → Developer → **Simulate Pro**.
+**Payments.** Test Pro via Settings -> Developer -> **Simulate Pro**.
 
 ## Before publishing
 
 - Change `applicationId` to one you own. Rate Bits uses it.
 - Delete the Developer section in `SettingsScreen.kt`.
 - Make a real release signing key.
-- Wire Play Billing so `isPro` comes from a verified purchase, and use Play Console
-  **License Testing** to comp yourself and close friends.
+- Wire Play Billing, and use Play Console **License Testing** to comp yourself.
 - Keep the font licences: Press Start 2P, Chakra Petch, Atkinson Hyperlegible.
 
 ## Project layout
 
-- `data/` model, midnight move, storage, backups, themes, clocks, per-widget boards
-- `games/` pure game rules, unit-tested (223 checks pass)
+- `data/` model, midnight move, storage, backups, themes, clocks, per-widget boards, hints
+- `games/` pure game rules, unit-tested (261 checks pass)
 - `widget/` the home screen widget (Jetpack Glance)
 - `time/` wakes the app after midnight, on reboot, on time zone changes
 - `ui/` screens, onboarding, retro games, Pro page, tour, armed delete

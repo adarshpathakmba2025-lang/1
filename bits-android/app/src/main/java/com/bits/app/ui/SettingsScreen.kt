@@ -61,6 +61,7 @@ import com.bits.app.data.BitsState
 import com.bits.app.data.ClockStyle
 import com.bits.app.data.ClockStyles
 import com.bits.app.data.WidgetThemes
+import com.bits.app.data.addCategory
 import com.bits.app.data.editBoard
 import com.bits.app.data.pruneBoards
 import com.bits.app.data.resetBoard
@@ -673,6 +674,37 @@ private fun BoardCard(
             }
         }
 
+        // A new category can be made right here, and it is switched on for this widget
+        // only, so the others are left exactly as they were.
+        var newCategory by remember { mutableStateOf("") }
+        InputPill(
+            value = newCategory,
+            onValueChange = { newCategory = it },
+            placeholder = "New category for this widget",
+            onSubmit = {
+                val name = newCategory.trim()
+                if (name.isNotEmpty()) {
+                    repository.edit { current ->
+                        val added = current.addCategory(name)
+                        val created = added.sortedCategories.lastOrNull()
+                        if (created == null) added else {
+                            // Show it here; keep it off every other board and the shared widget.
+                            var next = added.copy(widget = added.widget.copy(
+                                hiddenCategoryIds = added.widget.hiddenCategoryIds + created.id
+                            ))
+                            next.boards.keys.forEach { otherId ->
+                                if (otherId != appWidgetId) {
+                                    next = next.setShownOnBoard(otherId, created.id, false)
+                                }
+                            }
+                            next.setShownOnBoard(appWidgetId, created.id, true)
+                        }
+                    }
+                    newCategory = ""
+                }
+            },
+        )
+
         Divider()
         ToggleRow(
             title = "Show clock",
@@ -874,6 +906,14 @@ fun WidgetPreview(
     // The preview only takes over scrolling once tapped. Otherwise a drag that starts
     // inside it would fight the settings page instead of scrolling it.
     var interactive by remember { mutableStateOf(false) }
+
+    // It hands scrolling back automatically, so the page never stays hard to navigate.
+    LaunchedEffect(interactive) {
+        if (interactive) {
+            delay(15_000)
+            interactive = false
+        }
+    }
     val config = settings ?: state.widget
     val categories = state.categoriesFor(config)
     val theme = if (themeOverrideId != null) WidgetThemes.find(themeOverrideId) else state.themeFor(config)

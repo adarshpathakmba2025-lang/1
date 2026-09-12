@@ -69,6 +69,10 @@ data class Preferences(
     val wordleDay: Long,
     val wordleGuesses: List<String>,
     val wordleStreak: Int,
+    /** Spendable hint points, earned one per solved daily puzzle. */
+    val hintPoints: Int,
+    /** Positions bought with hint points for today's puzzle. */
+    val wordleRevealed: Set<Int>,
 ) {
     companion object {
         val Default = Preferences(
@@ -88,6 +92,8 @@ data class Preferences(
             wordleDay = 0L,
             wordleGuesses = emptyList(),
             wordleStreak = 0,
+            hintPoints = 0,
+            wordleRevealed = emptySet(),
         )
     }
 }

@@ -42,23 +42,70 @@ import com.bits.app.data.BitsState
 import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
 
-private const val FOUNDER_MESSAGE = "Hey, I'm \u0101darsh! I initially built this app for myself, but once it took shape, I knew I wanted to share it with everyone for free. It runs entirely offline, meaning your data stays strictly on your local device \u2014 no cloud uploads, no tracking, and never for sale.\n\nWhen you upgrade to Pro, you're not just unlocking extra features; you're directly keeping a tiny independent project alive and evolving. That genuinely means the world to me. Thank you for being here! ^_^"
+private val FOUNDER_LINES = listOf(
+    "Hey, I'm \u0101darsh. I built Bits for myself first \u2014 then it took shape, and I wanted everyone to have it free.",
+    "It runs entirely offline. Your data stays on your device. No cloud, no tracking, never for sale.",
+    "Going Pro unlocks the extras, but really it keeps a tiny independent project alive and growing. That means the world. ^_^",
+)
 
-private const val THANK_YOU_MESSAGE = "You went Pro \u2014 thank you, really. Bits is a tiny independent project, and you're the reason it keeps growing.\n\nEverything's unlocked below. Your data still never leaves your device. If there's something you'd love to see in Bits, I'd genuinely like to hear it. ^_^"
+private val THANK_YOU_LINES = listOf(
+    "You went Pro. Bits is a tiny independent project, and you're the reason it keeps growing.",
+    "Everything's unlocked below. Your data still never leaves your device.",
+    "If there's something you'd love to see in Bits, I'd really like to hear it. ^_^",
+)
 
-/** Shown once before the Pro page. Pro users get a thank-you instead of a pitch. */
+/**
+ * Shown once before the Pro page, in the arcade styling of the games section so it feels
+ * like part of Bits rather than a standard dialog. Pro users get a thank-you instead.
+ */
 @Composable
 fun FounderDialog(isPro: Boolean, onContinue: () -> Unit) {
+    val lines = if (isPro) THANK_YOU_LINES else FOUNDER_LINES
     Dialog(onDismissRequest = onContinue) {
-        Column(
-            Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(BitsColors.PanelBase)
-                .padding(22.dp)
-        ) {
-            Text(if (isPro) THANK_YOU_MESSAGE else FOUNDER_MESSAGE, style = BitsText.Body)
-            Row(Modifier.padding(top = 18.dp).fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                FilledAction(if (isPro) "See what's unlocked" else "Continue", onClick = onContinue)
+        Box {
+            // Offset block behind the panel, the same trick the games screens use.
+            Box(
+                Modifier
+                    .padding(start = 5.dp, top = 5.dp)
+                    .matchParentSize()
+                    .background(Color(0x99000000))
+            )
+            Column(
+                Modifier
+                    .padding(end = 5.dp, bottom = 5.dp)
+                    .background(Arcade.Border)
+                    .padding(2.dp)
+                    .background(Arcade.Panel)
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = if (isPro) "THANKS, REALLY" else "A NOTE FROM THE DEV",
+                    style = BitsText.PixelBody.copy(color = Arcade.Glow),
+                )
+                Box(
+                    Modifier
+                        .padding(top = 10.dp, bottom = 14.dp)
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(Arcade.Border)
+                )
+                lines.forEachIndexed { index, line ->
+                    Text(
+                        text = line,
+                        style = BitsText.Body.copy(color = if (index == 0) BitsColors.Ink else BitsColors.Ink.copy(alpha = 0.82f)),
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                }
+                Text(
+                    text = "\u2014 \u0101darsh",
+                    style = BitsText.PixelBody.copy(color = BitsColors.Muted),
+                    modifier = Modifier.padding(top = 2.dp, bottom = 16.dp),
+                )
+                PixelButton(
+                    label = if (isPro) "See what's unlocked" else "Continue",
+                    modifier = Modifier.align(Alignment.End),
+                    onClick = onContinue,
+                )
             }
         }
     }

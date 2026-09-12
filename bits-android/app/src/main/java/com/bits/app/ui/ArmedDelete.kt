@@ -32,7 +32,7 @@ const val DELETE_ARM_MILLIS = 3000L
 @Composable
 fun ArmedDelete(
     label: String = "Delete",
-    armedLabel: String = "Tap again",
+    armedLabel: String = "Confirm?",
     onConfirmed: () -> Unit,
 ) {
     var armed by remember { mutableStateOf(false) }

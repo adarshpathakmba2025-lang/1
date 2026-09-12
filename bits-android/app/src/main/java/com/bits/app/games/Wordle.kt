@@ -14,8 +14,11 @@ object Wordle {
     const val LENGTH = 5
     const val MAX_GUESSES = 6
 
-    /** One free letter keeps it a notch above easy without giving the word away. */
-    private const val HINTS = 1
+    /**
+     * How many letters come free. Mostly one, sometimes two, which keeps the difficulty
+     * hovering between comfortably-easy and medium rather than settling into a routine.
+     */
+    private fun hintCountFor(random: Random): Int = if (random.nextInt(4) == 0) 2 else 1
 
     val answers = listOf(
         "APPLE", "BRAVE", "CRANE", "DRIFT", "EAGER", "FLAME", "GRAPE", "HOUSE",
@@ -45,6 +48,18 @@ object Wordle {
         "BISON", "CANDY", "DEPTH", "EMPTY", "FERRY", "GRAIN", "HEDGE", "ISSUE",
         "JELLY", "KNOTS", "LEDGE", "MARSH", "NOISE", "OUGHT", "PUNCH", "QUERY",
         "ROUND", "SHELF", "TRAIL", "UNITE", "VOICE", "WEAVE", "YEARN", "ZEBEC",
+        "ACORN", "BLUSH", "CHALK", "DINER", "EERIE", "FLUTE", "GIANT", "HASTE",
+        "INFER", "JIFFY", "KAYAK", "LATTE", "MOUSE", "NEEDY", "OPTIC", "PLUSH",
+        "QUIRK", "RANCH", "SCOUT", "TIDAL", "UPPER", "VIRUS", "WIDEN", "ANKLE",
+        "BROOM", "CRUMB", "DRAPE", "ELITE", "FEAST", "GLEAM", "HOVER", "INNER",
+        "JOLTS", "KNEAD", "LUMEN", "MIDST", "NICHE", "ODDLY", "PROUD", "QUELL",
+        "RIFLE", "SHEEN", "TOKEN", "USAGE", "VALVE", "WHARF", "YUCCA", "AMPLE",
+        "BLIMP", "CROWN", "DEBUT", "ENJOY", "FRANK", "GUSTO", "HYMNS", "IDIOM",
+        "JUMPY", "KUDOS", "LOFTY", "MOTOR", "NOMAD", "ORGAN", "PIXEL", "QUOTE",
+        "ROVER", "SPARK", "TRUCE", "UNDER", "VOUCH", "WINCE", "ZAPPY", "BLADE",
+        "CHART", "DWARF", "EQUAL", "FLOOR", "GRACE", "HUNCH", "IVIED", "JOUST",
+        "KRILL", "LUNCH", "MERCY", "OASIS", "PRIDE", "QUAIL", "ROBOT", "SIEGE",
+        "THORN", "UNZIP", "VINYL", "WOULD", "YUMMY",
     )
 
     private val valid = answers.toSet()
@@ -57,30 +72,66 @@ object Wordle {
      * same word and the same hint positions, but both move around from day to day.
      */
     fun puzzleFor(dayIndex: Long): WordPuzzle {
-        // Mixing the day index keeps consecutive days from picking neighbouring words.
-        val seed = dayIndex * 0x9E3779B97F4A7C15uL.toLong()
+        // Mixing the day index keeps consecutive days from picking neighbouring words,
+        // and gives hint positions that jump around instead of marching along the row.
+        val seed = dayIndex * 0x9E3779B97F4A7C15uL.toLong() xor (dayIndex shl 21)
         val random = Random(seed)
         val answer = answers[((dayIndex * 7919L).mod(answers.size.toLong())).toInt()]
-        val revealed = (0 until LENGTH).shuffled(random).take(HINTS).toSet()
+        val revealed = (0 until LENGTH).shuffled(random).take(hintCountFor(random)).toSet()
         return WordPuzzle(dayIndex, answer, revealed)
     }
+
+    /** Cost in hint points to reveal one whole letter of the player's choosing. */
+    const val REVEAL_COST = 5
+
+    /** Cost to be told one letter that appears somewhere in the word. */
+    const val PEEK_COST = 1
+
+    /**
+     * A letter that's in the answer but which the player hasn't found yet, for the
+     * cheap hint. Returns null when there's nothing useful left to give away.
+     */
+    fun peekLetter(puzzle: WordPuzzle, guesses: List<String>, purchased: Set<Int>): Char? {
+        val known = buildSet {
+            puzzle.revealed.forEach { add(puzzle.answer[it]) }
+            purchased.forEach { add(puzzle.answer[it]) }
+            guesses.forEach { guess ->
+                mark(guess, puzzle.answer).forEachIndexed { i, m ->
+                    if (m != LetterMark.ABSENT) add(guess[i])
+                }
+            }
+        }
+        return puzzle.answer.firstOrNull { it !in known }
+    }
+
+    /** Positions still worth buying outright: not free, not already bought. */
+    fun revealableIndices(puzzle: WordPuzzle, purchased: Set<Int>): List<Int> =
+        (0 until LENGTH).filterNot { it in puzzle.revealed || it in purchased }
 
     fun isAcceptable(guess: String): Boolean =
         guess.length == LENGTH && guess.uppercase() in valid
 
-    /** Positions the player actually types into, left to right. */
-    fun editableIndices(puzzle: WordPuzzle): List<Int> =
-        (0 until LENGTH).filterNot { it in puzzle.revealed }
+    /**
+     * Positions the player actually types into, left to right. Free hints and any
+     * letters bought with hint points are excluded, so neither can be typed over.
+     */
+    fun editableIndices(puzzle: WordPuzzle, purchased: Set<Int> = emptySet()): List<Int> =
+        (0 until LENGTH).filterNot { it in puzzle.revealed || it in purchased }
+
+    /** Every position whose letter is already shown, free or bought. */
+    fun shownIndices(puzzle: WordPuzzle, purchased: Set<Int> = emptySet()): Set<Int> =
+        puzzle.revealed + purchased
 
     /**
      * Builds the full guess from the letters the player typed plus the free letters.
      * Typed input only ever covers the editable slots, so a hint can't be overwritten.
      */
-    fun assembleGuess(typed: String, puzzle: WordPuzzle): String {
-        val slots = editableIndices(puzzle)
+    fun assembleGuess(typed: String, puzzle: WordPuzzle, purchased: Set<Int> = emptySet()): String {
+        val slots = editableIndices(puzzle, purchased)
+        val shown = shownIndices(puzzle, purchased)
         val chars = CharArray(LENGTH)
         for (i in 0 until LENGTH) {
-            chars[i] = if (i in puzzle.revealed) puzzle.answer[i] else ' '
+            chars[i] = if (i in shown) puzzle.answer[i] else ' '
         }
         typed.forEachIndexed { index, ch ->
             if (index < slots.size) chars[slots[index]] = ch.uppercaseChar()
@@ -88,8 +139,8 @@ object Wordle {
         return chars.concatToString()
     }
 
-    fun isComplete(typed: String, puzzle: WordPuzzle): Boolean =
-        typed.length >= editableIndices(puzzle).size
+    fun isComplete(typed: String, puzzle: WordPuzzle, purchased: Set<Int> = emptySet()): Boolean =
+        typed.length >= editableIndices(puzzle, purchased).size
 
     /**
      * Standard Wordle marking. A letter is only marked PRESENT if the answer still has

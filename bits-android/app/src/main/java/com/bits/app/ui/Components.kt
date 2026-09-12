@@ -52,19 +52,26 @@ import kotlin.math.roundToInt
 fun BitsCheckbox(checked: Boolean, onToggle: () -> Unit, label: String) {
     Box(
         modifier = Modifier
-            .size(40.dp)
+            .size(width = 40.dp, height = 40.dp)
             .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() })
             .semantics { contentDescription = label },
-        contentAlignment = Alignment.Center,
+        // Sits against the first line of text, so multi-line items stay tidy.
+        contentAlignment = Alignment.TopCenter,
     ) {
-        CheckVisual(checked = checked, size = 20.dp)
+        Box(Modifier.padding(top = 9.dp)) {
+            CheckVisual(checked = checked, size = 19.dp)
+        }
     }
 }
 
+/**
+ * A squared-off box rather than a rounded one: slightly wider than tall, with a small
+ * corner radius, which reads a little more deliberate than a rounded tick-box.
+ */
 @Composable
 fun CheckVisual(checked: Boolean, size: Dp) {
-    val shape = RoundedCornerShape(size * 0.25f)
-    val base = Modifier.size(size).clip(shape)
+    val shape = RoundedCornerShape(size * 0.12f)
+    val base = Modifier.size(width = size * 1.08f, height = size).clip(shape)
     Box(
         modifier = if (checked) base.background(BitsColors.Done) else base.border(1.5.dp, BitsColors.Muted, shape),
         contentAlignment = Alignment.Center,
@@ -74,7 +81,7 @@ fun CheckVisual(checked: Boolean, size: Dp) {
                 imageVector = Icons.Filled.Check,
                 contentDescription = null,
                 tint = BitsColors.Bg,
-                modifier = Modifier.size(size * 0.72f),
+                modifier = Modifier.size(size * 0.7f),
             )
         }
     }

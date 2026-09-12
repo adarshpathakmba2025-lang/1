@@ -172,18 +172,38 @@ fun BitsState.startWordleDay(dayIndex: Long, brokeStreak: Boolean): BitsState =
         preferences = preferences.copy(
             wordleDay = dayIndex,
             wordleGuesses = emptyList(),
+            wordleRevealed = emptySet(),
             wordleStreak = if (brokeStreak) 0 else preferences.wordleStreak,
         )
     )
 
+/** Records a guess. Solving the day's puzzle also earns one hint point. */
 fun BitsState.withWordleGuess(dayIndex: Long, guess: String, solved: Boolean): BitsState =
     copy(
         preferences = preferences.copy(
             wordleDay = dayIndex,
             wordleGuesses = preferences.wordleGuesses + guess,
             wordleStreak = if (solved) preferences.wordleStreak + 1 else preferences.wordleStreak,
+            hintPoints = if (solved) preferences.hintPoints + 1 else preferences.hintPoints,
         )
     )
+
+/** Buys one letter outright. Refuses unless the points are actually there. */
+fun BitsState.spendOnReveal(index: Int, cost: Int): BitsState {
+    if (preferences.hintPoints < cost) return this
+    if (index in preferences.wordleRevealed) return this
+    return copy(
+        preferences = preferences.copy(
+            hintPoints = preferences.hintPoints - cost,
+            wordleRevealed = preferences.wordleRevealed + index,
+        )
+    )
+}
+
+/** Spends points on the cheap "one letter is in there somewhere" hint. */
+fun BitsState.spendPoints(cost: Int): BitsState =
+    if (preferences.hintPoints < cost) this
+    else copy(preferences = preferences.copy(hintPoints = preferences.hintPoints - cost))
 
 fun BitsState.withOnboardingDone(): BitsState =
     copy(preferences = preferences.copy(onboardingDone = true))

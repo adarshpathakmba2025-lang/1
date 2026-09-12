@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.addItem
 import com.bits.app.data.deleteItem
@@ -207,6 +208,35 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
 
     var value by remember(item.id) { mutableStateOf(TextFieldValue(item.text, TextRange(item.text.length))) }
     var settled by remember(item.id) { mutableStateOf(false) }
+    // After deleting, the card stays up for a moment purely to offer Undo. The app's own
+    // undo bar can't help here, because the widget never opens the app.
+    var deletedText by remember(item.id) { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(deletedText) {
+        if (deletedText != null) {
+            delay(4500)
+            onDone()
+        }
+    }
+
+    val pendingDelete = deletedText
+    if (pendingDelete != null) {
+        CardShell(onDismiss = onDone) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Deleted \u201C${pendingDelete.take(28)}\u201D",
+                    style = BitsText.Small.copy(color = BitsColors.Ink),
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+                TextAction("Undo", BitsColors.Amber) {
+                    repository.undoDelete()
+                    onDone()
+                }
+            }
+        }
+        return
+    }
 
     val save: () -> Unit = {
         if (!settled) {
@@ -239,7 +269,7 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
             ArmedDelete {
                 settled = true
                 repository.deleteItemWithUndo(item.id)
-                onDone()
+                deletedText = item.text
             }
             Spacer(Modifier.weight(1f))
             TextAction("Save", BitsColors.Ink) { save() }

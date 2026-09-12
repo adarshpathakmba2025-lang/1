@@ -32,7 +32,7 @@ internal object StateJson {
 
         val root = JSONObject()
             .put("app", "bits")
-            .put("version", 6)
+            .put("version", 7)
             .put("lastRollover", state.lastRollover)
             .put("categories", categories)
             .put("items", items)
@@ -72,6 +72,8 @@ internal object StateJson {
                     .put("wordleDay", state.preferences.wordleDay)
                     .put("wordleGuesses", JSONArray(state.preferences.wordleGuesses))
                     .put("wordleStreak", state.preferences.wordleStreak)
+                    .put("hintPoints", state.preferences.hintPoints)
+                    .put("wordleRevealed", JSONArray(state.preferences.wordleRevealed.toList()))
                     .put("easterEggUsed", state.preferences.easterEggUsed)
                     .put("onboardingDone", state.preferences.onboardingDone)
                     .put("highScores", JSONObject(state.preferences.highScores.mapValues { it.value as Any }))
@@ -191,6 +193,10 @@ internal object StateJson {
                 (0 until arr.length()).map { arr.getString(it) }
             },
             wordleStreak = json.optInt("wordleStreak", 0),
+            hintPoints = json.optInt("hintPoints", 0),
+            wordleRevealed = (json.optJSONArray("wordleRevealed") ?: JSONArray()).let { arr ->
+                (0 until arr.length()).map { arr.getInt(it) }.toSet()
+            },
         )
     }
 

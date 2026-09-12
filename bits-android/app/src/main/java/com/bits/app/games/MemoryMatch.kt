@@ -2,13 +2,22 @@ package com.bits.app.games
 
 import kotlin.random.Random
 
-/** What a level's cards show. Each keeps the pixel look of the games section. */
+/** What a round's cards show. Each keeps the pixel look of the games section. */
 enum class MemoryDeck(val label: String) {
     COLORS("Colours"),
     NUMBERS("Numbers"),
     LETTERS("Letters"),
     FRUIT("Fruit"),
     SHAPES("Shapes"),
+    FOOD("Food"),
+    ANIMALS("Animals"),
+    FLAGS("Flags"),
+    SPACE("Space"),
+    WEATHER("Weather"),
+    /** Pairs like 2U / 9A: a digit and a letter together. */
+    CODES("Codes"),
+    /** A different deck on every card, all jumbled together. */
+    JUMBLED("Jumbled"),
 }
 
 data class MemoryCard(val id: Int, val symbol: Int, val faceUp: Boolean, val matched: Boolean)
@@ -16,22 +25,24 @@ data class MemoryCard(val id: Int, val symbol: Int, val faceUp: Boolean, val mat
 data class MemoryLevel(val number: Int, val deck: MemoryDeck, val pairs: Int, val cards: List<MemoryCard>)
 
 object MemoryMatch {
-    /** Levels cycle through the decks and widen the board as they go. */
-    fun deckFor(level: Int): MemoryDeck = MemoryDeck.entries[(level - 1).coerceAtLeast(0) % MemoryDeck.entries.size]
+    /** A deck picked at random, so no two rounds feel like a sequence. */
+    fun randomDeck(random: Random = Random.Default): MemoryDeck =
+        MemoryDeck.entries[random.nextInt(MemoryDeck.entries.size)]
 
-    fun pairsFor(level: Int): Int = when {
-        level <= 1 -> 6
-        level <= 3 -> 8
+    /** The board grows a little as rounds go on, then settles. */
+    fun pairsFor(round: Int): Int = when {
+        round <= 1 -> 6
+        round <= 3 -> 8
         else -> 10
     }
 
-    fun newLevel(level: Int, random: Random = Random.Default): MemoryLevel {
-        val pairs = pairsFor(level)
+    fun newLevel(round: Int, random: Random = Random.Default): MemoryLevel {
+        val pairs = pairsFor(round)
         val symbols = (0 until pairs).flatMap { listOf(it, it) }.shuffled(random)
         val cards = symbols.mapIndexed { index, symbol ->
             MemoryCard(id = index, symbol = symbol, faceUp = false, matched = false)
         }
-        return MemoryLevel(number = level, deck = deckFor(level), pairs = pairs, cards = cards)
+        return MemoryLevel(number = round, deck = randomDeck(random), pairs = pairs, cards = cards)
     }
 
     fun faceUpUnmatched(cards: List<MemoryCard>): List<MemoryCard> =

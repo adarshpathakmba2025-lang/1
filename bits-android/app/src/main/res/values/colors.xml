@@ -1,5 +1,5 @@
 <resources>
     <color name="bits_bg">#16202B</color>
-    <!-- The launcher icon's amber tile. -->
-    <color name="ic_launcher_background">#F2B544</color>
+    <!-- The launcher icon's cream tile. -->
+    <color name="ic_launcher_background">#F1EDE2</color>
 </resources>
