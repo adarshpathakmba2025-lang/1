@@ -9,8 +9,10 @@ import android.net.Uri
 import android.text.format.DateFormat
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -48,9 +50,12 @@ import androidx.compose.ui.unit.dp
 import com.bits.app.R
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.BitsState
+import com.bits.app.data.WidgetThemes
 import com.bits.app.data.withAutoClear
 import com.bits.app.data.withClock
+import com.bits.app.data.withPro
 import com.bits.app.data.withWidgetOpacity
+import com.bits.app.data.withWidgetTheme
 import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
 import com.bits.app.widget.BitsWidgetReceiver
@@ -91,6 +96,7 @@ fun SettingsScreen(
     state: BitsState,
     repository: BitsRepository,
     onBack: () -> Unit,
+    onOpenPaywall: () -> Unit,
     onReplayTour: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -118,7 +124,19 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(start = 12.dp, end = 12.dp, bottom = 24.dp)
         ) {
+            var showFounderDialog by remember { mutableStateOf(false) }
+            ProSection(state) { showFounderDialog = true }
+            if (showFounderDialog) {
+                FounderDialog(
+                    onContinue = {
+                        showFounderDialog = false
+                        onOpenPaywall()
+                    },
+                    onDismiss = { showFounderDialog = false },
+                )
+            }
             WidgetSection(state, repository)
+            ThemeSection(state, repository, onOpenPaywall)
             CleanupSection(state, repository)
             BackupSection(repository)
             SettingsCard("Help") {
@@ -128,7 +146,7 @@ fun SettingsScreen(
                     onClick = onReplayTour,
                 )
             }
-            TestingSection(repository)
+            TestingSection(state, repository)
             SettingsCard("About") {
                 ActionRow(
                     title = "Rate Bits",
@@ -195,6 +213,102 @@ private fun ActionRow(title: String, description: String?, color: Color = BitsCo
         Text(title, style = BitsText.Body.copy(color = color))
         if (description != null) {
             Text(description, style = BitsText.Small, modifier = Modifier.padding(top = 2.dp))
+        }
+    }
+}
+
+@Composable
+private fun ProSection(state: BitsState, onOpenPaywall: () -> Unit) {
+    Column(
+        Modifier
+            .padding(top = 4.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (state.preferences.isPro) BitsColors.Panel else BitsColors.Amber.copy(alpha = 0.14f))
+            .clickable(onClick = onOpenPaywall)
+            .padding(16.dp)
+    ) {
+        Text(
+            text = if (state.preferences.isPro) "You're Pro \u2014 thank you!" else "Upgrade to Pro",
+            style = BitsText.Subtitle.copy(color = if (state.preferences.isPro) BitsColors.Ink else BitsColors.Amber),
+        )
+        Text(
+            text = if (state.preferences.isPro) {
+                "More games and widget themes as they arrive. Tap to see what's included."
+            } else {
+                "Extra games, widget themes, and more \u2014 a small one-time thank-you that keeps Bits going."
+            },
+            style = BitsText.Small,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+@Composable
+private fun ThemeSection(state: BitsState, repository: BitsRepository, onOpenPaywall: () -> Unit) {
+    // Previewing a locked theme doesn't save it — it only changes what this screen shows,
+    // so a free user can see what they'd be getting without it affecting their real widget.
+    var previewId by remember(state.preferences.widgetThemeId) { mutableStateOf(state.preferences.widgetThemeId) }
+    val previewTheme = WidgetThemes.find(previewId)
+    val isPro = state.preferences.isPro
+
+    SettingsCard("Widget theme") {
+        Text(
+            text = "Tap any theme to try it on the preview above. Classic is free \u2014 the rest come with Pro.",
+            style = BitsText.Small,
+            modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
+        )
+        WidgetPreview(
+            state = state,
+            opacity = state.widget.opacity,
+            themeOverrideId = previewId,
+            modifier = Modifier.fillMaxWidth().height(220.dp),
+        )
+        Spacer(Modifier.height(12.dp))
+
+        val rows = WidgetThemes.all.chunked(2)
+        rows.forEach { pair ->
+            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pair.forEach { theme ->
+                    val locked = !theme.free && !isPro
+                    val selected = theme.id == state.preferences.widgetThemeId
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(BitsColors.PanelBase)
+                            .clickable {
+                                previewId = theme.id
+                                if (!locked) repository.edit { it.withWidgetTheme(theme.id) }
+                            }
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier
+                                    .size(14.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color(theme.accent))
+                            )
+                            Text(
+                                theme.displayName,
+                                style = BitsText.Small.copy(color = BitsColors.Ink),
+                                modifier = Modifier.weight(1f).padding(start = 8.dp),
+                            )
+                            if (locked) {
+                                Text("\uD83D\uDD12", style = BitsText.Small)
+                            } else if (selected) {
+                                Text("\u2713", style = BitsText.Small.copy(color = BitsColors.Amber))
+                            }
+                        }
+                    }
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+
+        if (!isPro && previewTheme.free.not()) {
+            FilledAction(text = "Unlock with Pro", modifier = Modifier.padding(top = 12.dp), onClick = onOpenPaywall)
         }
     }
 }
@@ -349,9 +463,20 @@ private fun BackupSection(repository: BitsRepository) {
 }
 
 @Composable
-private fun TestingSection(repository: BitsRepository) {
+private fun TestingSection(state: BitsState, repository: BitsRepository) {
     var confirmReset by remember { mutableStateOf(false) }
-    SettingsCard("Testing") {
+    SettingsCard("Developer \u2014 remove before publishing") {
+        Text(
+            text = "Nothing below is real billing. This just flips a local flag so Pro-gated UI can be checked before Play Billing is wired up.",
+            style = BitsText.Small,
+            modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+        )
+        SwitchRow(
+            title = "Simulate Pro",
+            description = "Pretend the purchase happened, to test games and themes.",
+            checked = state.preferences.isPro,
+            onCheckedChange = { on -> repository.edit { it.withPro(on) } },
+        )
         ActionRow(
             title = "Simulate midnight",
             description = "Run the day change now: unfinished Tomorrow items move into Today.",
@@ -380,10 +505,14 @@ private fun TestingSection(repository: BitsRepository) {
     }
 }
 
-/** A faithful copy of the home screen widget. */
+/** A faithful copy of the home screen widget. themeOverrideId lets Settings preview a theme without saving it. */
 @Composable
-fun WidgetPreview(state: BitsState, opacity: Float, modifier: Modifier = Modifier) {
+fun WidgetPreview(state: BitsState, opacity: Float, themeOverrideId: String? = null, modifier: Modifier = Modifier) {
     val categories = state.widgetCategories
+    val theme = WidgetThemes.find(themeOverrideId ?: state.preferences.widgetThemeId)
+    val accent = Color(theme.accent)
+    val done = Color(theme.doneColor)
+    val background = Color(theme.backgroundTint)
 
     Box(modifier.clip(RoundedCornerShape(24.dp)).background(BitsColors.HomeWall)) {
         DotGrid(Modifier.fillMaxSize(), spacing = 14.dp, color = Color(0x17EAE6DA))
@@ -393,7 +522,7 @@ fun WidgetPreview(state: BitsState, opacity: Float, modifier: Modifier = Modifie
                 .fillMaxSize()
                 .padding(12.dp)
                 .clip(RoundedCornerShape(22.dp))
-                .background(BitsColors.WidgetInk.copy(alpha = opacity))
+                .background(background.copy(alpha = opacity))
                 .padding(start = 16.dp, end = 10.dp, top = 14.dp, bottom = 4.dp)
         ) {
             if (state.widget.showClock) {
@@ -416,20 +545,29 @@ fun WidgetPreview(state: BitsState, opacity: Float, modifier: Modifier = Modifie
                 categories.forEachIndexed { index, category ->
                     Text(
                         text = category.name.uppercase(),
-                        style = BitsText.WidgetHeading,
+                        style = BitsText.WidgetHeading.copy(color = accent),
                         modifier = Modifier.padding(top = if (index == 0) 0.dp else 15.dp, bottom = 5.dp),
                     )
                     state.itemsIn(category.id).forEach { item ->
                         Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.Top) {
                             CheckVisual(checked = item.done, size = 17.dp)
                             Spacer(Modifier.width(9.dp))
-                            Text(item.text, style = if (item.done) BitsText.WidgetItemDone else BitsText.WidgetItem)
+                            Text(
+                                item.text,
+                                style = if (item.done) BitsText.WidgetItem.copy(color = done, textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough)
+                                else BitsText.WidgetItem,
+                            )
                         }
                     }
                 }
             }
 
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(R.drawable.ic_game_controller),
+                    contentDescription = null,
+                    modifier = Modifier.padding(9.dp).size(18.dp),
+                )
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = "Bits",

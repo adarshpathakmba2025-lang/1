@@ -30,9 +30,11 @@ import kotlinx.coroutines.delay
 sealed interface LaunchRequest {
     data class OpenCategory(val categoryId: String) : LaunchRequest
     data object OpenSettings : LaunchRequest
+    data object OpenGames : LaunchRequest
+    data object OpenHome : LaunchRequest
 }
 
-private enum class Screen { Home, Settings }
+private enum class Screen { Home, Settings, GamesHub, Game2048, Paywall }
 
 @Composable
 fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
@@ -61,12 +63,16 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                 screen = Screen.Home
             }
             LaunchRequest.OpenSettings -> screen = Screen.Settings
+            LaunchRequest.OpenGames -> screen = Screen.GamesHub
+            LaunchRequest.OpenHome -> screen = Screen.Home
             null -> return@LaunchedEffect
         }
         onLaunchHandled()
     }
 
-    BackHandler(enabled = screen == Screen.Settings) { screen = Screen.Home }
+    BackHandler(enabled = screen == Screen.Game2048) { screen = Screen.GamesHub }
+    BackHandler(enabled = screen == Screen.Paywall) { screen = Screen.Settings }
+    BackHandler(enabled = screen == Screen.Settings || screen == Screen.GamesHub) { screen = Screen.Home }
 
     val current = state
     val tutorialActive = current != null && !current.preferences.tutorialSeen && screen == Screen.Home
@@ -98,16 +104,28 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                             selectedCategoryId = selectedCategoryId,
                             onSelectCategory = { selectedCategoryId = it },
                             onOpenSettings = { screen = Screen.Settings },
+                            onOpenGames = { screen = Screen.GamesHub },
                             tutorialActive = tutorialActive,
                         )
                         Screen.Settings -> SettingsScreen(
                             state = current,
                             repository = repository,
                             onBack = { screen = Screen.Home },
+                            onOpenPaywall = { screen = Screen.Paywall },
                             onReplayTour = {
                                 repository.edit { it.withTutorialSeen(false) }
                                 screen = Screen.Home
                             },
+                        )
+                        Screen.GamesHub -> GamesHubScreen(
+                            isPro = current.preferences.isPro,
+                            onBack = { screen = Screen.Home },
+                            onPlay2048 = { screen = Screen.Game2048 },
+                        )
+                        Screen.Game2048 -> Game2048Screen(onBack = { screen = Screen.GamesHub })
+                        Screen.Paywall -> PaywallScreen(
+                            repository = repository,
+                            onBack = { screen = Screen.Settings },
                         )
                     }
                 }

@@ -32,6 +32,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -180,6 +183,8 @@ fun InputPill(
     modifier: Modifier = Modifier,
 ) {
     val hasText = value.isNotBlank()
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -191,7 +196,13 @@ fun InputPill(
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clickable(onClick = onSubmit),
+                .clickable {
+                    // Empty field: just bring the keyboard up. Field already has text: same as tapping Add.
+                    if (hasText) onSubmit() else {
+                        focusRequester.requestFocus()
+                        keyboard?.show()
+                    }
+                },
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Filled.Add, contentDescription = "Add", tint = BitsColors.Amber, modifier = Modifier.size(22.dp))
@@ -211,7 +222,7 @@ fun InputPill(
                     imeAction = ImeAction.Done,
                 ),
                 keyboardActions = KeyboardActions(onDone = { onSubmit() }),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             )
         }
         Text(

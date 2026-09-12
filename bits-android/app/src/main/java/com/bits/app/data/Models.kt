@@ -38,9 +38,21 @@ data class WidgetSettings(
 data class Preferences(
     val autoClearCompleted: Boolean,
     val tutorialSeen: Boolean,
+    /**
+     * Whether Pro perks (extra games, extra widget boards, widget themes) are unlocked.
+     * This will be set by a verified Play Billing purchase once billing is wired up.
+     * Until then it can only be flipped by the "Simulate Pro" developer switch in Settings.
+     */
+    val isPro: Boolean,
+    val widgetThemeId: String,
 ) {
     companion object {
-        val Default = Preferences(autoClearCompleted = false, tutorialSeen = false)
+        val Default = Preferences(
+            autoClearCompleted = false,
+            tutorialSeen = false,
+            isPro = false,
+            widgetThemeId = WidgetThemes.Classic.id,
+        )
     }
 }
 

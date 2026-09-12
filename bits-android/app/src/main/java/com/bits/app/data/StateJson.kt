@@ -32,7 +32,7 @@ internal object StateJson {
 
         val root = JSONObject()
             .put("app", "bits")
-            .put("version", 2)
+            .put("version", 3)
             .put("lastRollover", state.lastRollover)
             .put("categories", categories)
             .put("items", items)
@@ -48,6 +48,8 @@ internal object StateJson {
                 JSONObject()
                     .put("autoClearCompleted", state.preferences.autoClearCompleted)
                     .put("tutorialSeen", state.preferences.tutorialSeen)
+                    .put("isPro", state.preferences.isPro)
+                    .put("widgetThemeId", state.preferences.widgetThemeId)
             )
         if (exportedAt != null) root.put("exportedAt", exportedAt)
         return root.toString()
@@ -119,6 +121,8 @@ internal object StateJson {
         return Preferences(
             autoClearCompleted = json.optBoolean("autoClearCompleted", false),
             tutorialSeen = json.optBoolean("tutorialSeen", false),
+            isPro = json.optBoolean("isPro", false),
+            widgetThemeId = json.optString("widgetThemeId", WidgetThemes.Classic.id),
         )
     }
 

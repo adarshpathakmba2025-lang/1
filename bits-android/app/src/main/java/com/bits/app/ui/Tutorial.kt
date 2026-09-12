@@ -6,18 +6,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,6 +46,15 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
@@ -63,6 +73,7 @@ object TutorialTarget {
     const val CAPTURE = "capture"
     const val ITEM = "item"
     const val HANDLE = "handle"
+    const val GAMES = "games"
     const val SETTINGS = "settings"
 }
 
@@ -79,57 +90,73 @@ fun Modifier.tutorialTarget(key: String): Modifier = composed {
     }
 }
 
-private data class TourStep(val title: String, val body: String, val target: String?)
+private data class TourStep(val title: AnnotatedString, val body: String, val target: String?)
+
+private fun plain(text: String) = AnnotatedString(text)
+
+/** “Tomorrow ~never~ comes.” — all italic; “never” is regular weight and struck through, the rest bold. */
+private val tomorrowNeverComes = buildAnnotatedString {
+    withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = FontWeight.Bold)) { append("\u201CTomorrow ") }
+    withStyle(
+        SpanStyle(fontStyle = FontStyle.Italic, fontWeight = FontWeight.Normal, textDecoration = TextDecoration.LineThrough)
+    ) { append("never") }
+    withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = FontWeight.Bold)) { append(" comes.\u201D") }
+}
 
 private val tourSteps = listOf(
     TourStep(
-        title = "Welcome to Bits",
-        body = "One place for everything you don't want to forget: tasks, groceries, books, ideas, anything. Here's a quick tour.",
+        title = plain("Welcome to Bits!"),
+        body = "A single swipe box for everything you don\u2019t wanna forget! Log your tasks, book list, quick ideas that usually slip out, or whatever you like! Here\u2019s a quick walkthrough\u2026",
         target = null,
     ),
     TourStep(
-        title = "Add anything",
-        body = "Type here, then press Enter or tap Add. No forms, no setup. The keyboard stays open for the next one.",
+        title = plain("Add literally anything\u2026"),
+        body = "Here is where you type the \u201Cbits\u201D and pieces of your life and add \u2019em in. It\u2019s all divided category-wise.",
         target = TutorialTarget.CAPTURE,
     ),
     TourStep(
-        title = "Check it off",
-        body = "Tap the box when something's done. Finished items stay visible, faded, so nothing gets lost. Tap the text to edit or delete it.",
+        title = plain("Task Completed"),
+        body = "Once you\u2019ve completed a bit, you can check it off by tapping on the box. Tap the text to edit or delete it.",
         target = TutorialTarget.ITEM,
     ),
     TourStep(
-        title = "Put things in order",
-        body = "Press and drag this handle to move an item up or down.",
+        title = plain("Put things in order"),
+        body = "Press and drag this handle to reposition it vertically.",
         target = TutorialTarget.HANDLE,
     ),
     TourStep(
-        title = "Switch lists",
-        body = "Each category is its own list. Today and Tomorrow are built in.",
+        title = plain("Categories and lists"),
+        body = "You can maintain separate lists under multiple categories.",
         target = TutorialTarget.CHIPS,
     ),
     TourStep(
-        title = "Plan with Tomorrow",
-        body = "Anything unfinished in Tomorrow moves into Today at midnight, all by itself. No dates to set.",
+        title = tomorrowNeverComes,
+        body = "Anything unfinished in Tomorrow automatically moves into Today when the clock hits midnight.",
         target = TutorialTarget.CHIPS,
     ),
     TourStep(
-        title = "Make it yours",
-        body = "Tap Edit to add, rename, delete, or reorder categories. The switch next to each one decides whether it shows on your widget.",
+        title = plain("Make it yours"),
+        body = "Tap Edit to add, rename, delete, hide or reorder categories. Tap a name to dim it \u2014 dimmed ones stay off your widget.",
         target = TutorialTarget.EDIT,
     ),
     TourStep(
-        title = "Find anything",
-        body = "Search every list at once, including things you've already finished.",
+        title = plain("Find anything"),
+        body = "I guess it\u2019s kinda self-explanatory\u2026",
         target = TutorialTarget.SEARCH,
     ),
     TourStep(
-        title = "Keep it in view",
-        body = "Add Bits to your home screen: long-press an empty spot, tap Widgets, and find Bits. You can tick items off right from the widget.",
+        title = plain("Keep it in your reach"),
+        body = "Long-press an empty spot, tap Widgets, and look for Bits. You can tick items off and edit them right from the widget itself!",
         target = null,
     ),
     TourStep(
-        title = "Settings",
-        body = "Turn the widget clock on or off, change its transparency, clear finished items daily, back up your data, or replay this tour.",
+        title = plain("Bored? Take a break"),
+        body = "Tap the little controller for a quick game. It\u2019s on your widget too, bottom left!",
+        target = TutorialTarget.GAMES,
+    ),
+    TourStep(
+        title = plain("Customize"),
+        body = "Change the way your widget looks and more from the settings.",
         target = TutorialTarget.SETTINGS,
     ),
 )
@@ -141,16 +168,15 @@ fun TutorialOverlay(targets: TutorialTargets, onFinish: () -> Unit) {
     val isLast = index == tourSteps.lastIndex
     val rect = step.target?.let { targets.bounds[it] }
 
+    val goBack = { if (index > 0) index -= 1 }
+    // On the last step, only "Get started" finishes the tour.
+    val goNext = { if (!isLast) index += 1 }
+
     BackHandler {
         if (index > 0) index -= 1 else onFinish()
     }
 
-    BoxWithConstraints(
-        Modifier
-            .fillMaxSize()
-            // Blocks taps on the app underneath while the tour is open.
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
-    ) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         val cardAtTop = rect != null && rect.center.y > constraints.maxHeight * 0.5f
 
         Canvas(
@@ -169,6 +195,27 @@ fun TutorialOverlay(targets: TutorialTargets, onFinish: () -> Unit) {
             }
         }
 
+        // Tap zones: the left 40% of the screen goes back, the right 60% goes forward.
+        // They also block taps from reaching the app underneath while the tour is open.
+        Row(Modifier.fillMaxSize()) {
+            Box(
+                Modifier
+                    .fillMaxHeight()
+                    .weight(0.4f)
+                    .semantics { contentDescription = "Previous step" }
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { goBack() }
+            )
+            Box(
+                Modifier
+                    .fillMaxHeight()
+                    .weight(0.6f)
+                    .semantics { contentDescription = if (isLast) "Last step" else "Next step" }
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { goNext() }
+            )
+        }
+
+        // The card has no tap handler of its own, so taps on its text fall through to the zones
+        // beneath it. Only its buttons (Skip tour, Get started) catch taps directly.
         Column(
             modifier = Modifier
                 .align(
@@ -200,16 +247,17 @@ fun TutorialOverlay(targets: TutorialTargets, onFinish: () -> Unit) {
             Text(step.body, style = BitsText.Body, modifier = Modifier.padding(top = 6.dp, end = 8.dp))
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (!isLast) {
+                if (isLast) {
+                    Spacer(Modifier.weight(1f))
+                    FilledAction("Get started", onClick = onFinish)
+                } else {
                     TextAction("Skip tour", BitsColors.Muted, onFinish)
-                }
-                Spacer(Modifier.weight(1f))
-                if (index > 0) {
-                    TextAction("Back", BitsColors.Ink) { index -= 1 }
-                    Spacer(Modifier.width(4.dp))
-                }
-                FilledAction(if (isLast) "Get started" else "Next") {
-                    if (isLast) onFinish() else index += 1
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = if (index == 0) "Tap right to continue" else "Tap left or right",
+                        style = BitsText.Small.copy(color = BitsColors.Muted.copy(alpha = 0.7f)),
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
                 }
             }
         }

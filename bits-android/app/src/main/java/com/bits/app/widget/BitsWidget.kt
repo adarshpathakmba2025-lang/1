@@ -45,14 +45,10 @@ import com.bits.app.data.BitsRepository
 import com.bits.app.data.BitsState
 import com.bits.app.data.Category
 import com.bits.app.data.Item
+import com.bits.app.data.WidgetThemes
 import com.bits.app.time.MidnightScheduler
 
-// Widget colors match the app. Widgets can only use system fonts, so text here is Roboto.
-private val WidgetInk = Color(0xFF0C131B)
-private val Ink = Color(0xFFEAE6DA)
 private val Muted = Color(0xFF8A95A3)
-private val Done = Color(0xFF667281)
-private val Amber = Color(0xFFF2B544)
 
 /** Must match the clock height in the in-app preview. */
 private val ClockHeight = 88.dp
@@ -82,6 +78,12 @@ class BitsWidget : GlanceAppWidget() {
 
 @Composable
 private fun WidgetBody(context: Context, state: BitsState) {
+    val theme = WidgetThemes.find(state.preferences.widgetThemeId)
+    val ink = Color(0xFFEAE6DA)
+    val done = Color(theme.doneColor)
+    val accent = Color(theme.accent)
+    val background = Color(theme.backgroundTint)
+
     val categories = state.widgetCategories
     val lines = buildList<WidgetLine> {
         categories.forEachIndexed { index, category ->
@@ -95,7 +97,7 @@ private fun WidgetBody(context: Context, state: BitsState) {
         modifier = GlanceModifier
             .fillMaxSize()
             .appWidgetBackground()
-            .background(WidgetInk.copy(alpha = state.widget.opacity))
+            .background(background.copy(alpha = state.widget.opacity))
             .cornerRadius(22.dp)
             .padding(start = 16.dp, end = 10.dp, top = 14.dp, bottom = 4.dp)
     ) {
@@ -111,8 +113,8 @@ private fun WidgetBody(context: Context, state: BitsState) {
         LazyColumn(modifier = GlanceModifier.defaultWeight().fillMaxWidth()) {
             items(lines) { line ->
                 when (line) {
-                    is WidgetLine.Header -> HeaderLine(context, line.category, line.first)
-                    is WidgetLine.Entry -> EntryLine(line.item)
+                    is WidgetLine.Header -> HeaderLine(context, line.category, line.first, accent)
+                    is WidgetLine.Entry -> EntryLine(context, line.item, ink, done)
                     is WidgetLine.Hint -> Text(
                         text = "Nothing to show. In the app, tap Edit and switch on a category.",
                         style = TextStyle(color = ColorProvider(Muted), fontSize = 14.sp, fontWeight = FontWeight.Medium),
@@ -122,31 +124,43 @@ private fun WidgetBody(context: Context, state: BitsState) {
         }
 
         Row(
-            modifier = GlanceModifier
-                .fillMaxWidth()
-                .clickable(actionStartActivity(Launch.settings(context))),
+            modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Bottom-left: quick access to the mini-games section.
+            Image(
+                provider = ImageProvider(R.drawable.ic_game_controller),
+                contentDescription = "Play a quick game",
+                modifier = GlanceModifier
+                    .size(36.dp)
+                    .padding(9.dp)
+                    .clickable(actionStartActivity(Launch.games(context))),
+            )
             Spacer(modifier = GlanceModifier.defaultWeight())
             Text(
                 text = "Bits",
                 style = TextStyle(color = ColorProvider(Muted), fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                modifier = GlanceModifier.padding(vertical = 8.dp),
+                modifier = GlanceModifier
+                    .padding(vertical = 8.dp)
+                    .clickable(actionStartActivity(Launch.app(context))),
             )
             Image(
                 provider = ImageProvider(R.drawable.ic_tune),
                 contentDescription = "Bits settings",
-                modifier = GlanceModifier.size(36.dp).padding(9.dp),
+                modifier = GlanceModifier
+                    .size(36.dp)
+                    .padding(9.dp)
+                    .clickable(actionStartActivity(Launch.settings(context))),
             )
         }
     }
 }
 
 @Composable
-private fun HeaderLine(context: Context, category: Category, first: Boolean) {
+private fun HeaderLine(context: Context, category: Category, first: Boolean, accent: Color) {
     Text(
         text = category.name.uppercase(),
-        style = TextStyle(color = ColorProvider(Amber), fontSize = 13.sp, fontWeight = FontWeight.Bold),
+        style = TextStyle(color = ColorProvider(accent), fontSize = 13.sp, fontWeight = FontWeight.Bold),
         modifier = GlanceModifier
             .fillMaxWidth()
             .padding(top = if (first) 0.dp else 15.dp, bottom = 5.dp)
@@ -155,33 +169,36 @@ private fun HeaderLine(context: Context, category: Category, first: Boolean) {
 }
 
 @Composable
-private fun EntryLine(item: Item) {
+private fun EntryLine(context: Context, item: Item, ink: Color, done: Color) {
     Row(
-        modifier = GlanceModifier
-            .fillMaxWidth()
-            .padding(vertical = 3.dp)
-            .clickable(
-                actionRunCallback<ToggleItemAction>(
-                    actionParametersOf(ToggleItemAction.ItemIdKey to item.id)
-                )
-            ),
+        modifier = GlanceModifier.fillMaxWidth().padding(vertical = 3.dp),
         verticalAlignment = Alignment.Top,
     ) {
+        // Checkbox: toggles done/undone in place.
         Image(
             provider = ImageProvider(if (item.done) R.drawable.ic_check_on else R.drawable.ic_check_off),
-            contentDescription = if (item.done) "Done" else "Not done",
-            modifier = GlanceModifier.size(17.dp),
+            contentDescription = if (item.done) "Mark not done" else "Mark done",
+            modifier = GlanceModifier
+                .size(17.dp)
+                .clickable(
+                    actionRunCallback<ToggleItemAction>(
+                        actionParametersOf(ToggleItemAction.ItemIdKey to item.id)
+                    )
+                ),
         )
         Spacer(modifier = GlanceModifier.width(9.dp))
+        // Text: opens the small floating editor instead of toggling completion.
         Text(
             text = item.text,
             style = TextStyle(
-                color = ColorProvider(if (item.done) Done else Ink),
+                color = ColorProvider(if (item.done) done else ink),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 textDecoration = if (item.done) TextDecoration.LineThrough else null,
             ),
-            modifier = GlanceModifier.defaultWeight(),
+            modifier = GlanceModifier
+                .defaultWeight()
+                .clickable(actionStartActivity(Launch.quickEdit(context, item.id))),
         )
     }
 }

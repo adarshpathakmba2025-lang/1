@@ -1,5 +1,6 @@
 package com.bits.app.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -92,6 +93,7 @@ fun HomeScreen(
     selectedCategoryId: String,
     onSelectCategory: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenGames: () -> Unit,
     tutorialActive: Boolean,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -113,6 +115,21 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Bits", style = BitsText.Brand, modifier = Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .tutorialTarget(TutorialTarget.GAMES)
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(50))
+                    .clickable(onClick = onOpenGames),
+                contentAlignment = Alignment.Center,
+            ) {
+                // No tint here: the icon's two tones are baked into the drawable itself.
+                Image(
+                    painter = painterResource(R.drawable.ic_game_controller),
+                    contentDescription = "Games",
+                    modifier = Modifier.size(24.dp),
+                )
+            }
             Box(
                 modifier = Modifier
                     .tutorialTarget(TutorialTarget.SETTINGS)
@@ -523,7 +540,7 @@ private fun ManageCategories(state: BitsState, repository: BitsRepository) {
             modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 18.dp),
         )
         Text(
-            text = "Switch a category on to show it on your widget. Drag to reorder. Today and Tomorrow are permanent.",
+            text = "Tap a name to dim it and hide it from your widget. Drag to reorder. Today and Tomorrow are permanent.",
             style = BitsText.Small,
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
         )
@@ -556,18 +573,34 @@ private fun ManageCategories(state: BitsState, repository: BitsRepository) {
                                     modifier = Modifier.weight(1f).padding(start = 12.dp),
                                 )
                             } else {
-                                Text(
-                                    text = category.name,
-                                    style = BitsText.Body,
-                                    modifier = Modifier.weight(1f).padding(start = 12.dp, top = 10.dp, bottom = 10.dp),
-                                )
-                                MiniSwitch(
-                                    checked = shown,
-                                    onCheckedChange = { on -> repository.edit { s -> s.setShownOnWidget(category.id, on) } },
-                                    label = if (shown) "Shown on widget: ${category.name}" else "Hidden from widget: ${category.name}",
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable(
+                                            onClickLabel = if (shown) "Hide from widget" else "Show on widget",
+                                        ) { repository.edit { s -> s.setShownOnWidget(category.id, !shown) } }
+                                        .padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = category.name,
+                                        style = if (shown) BitsText.Body else BitsText.Body.copy(color = BitsColors.Muted.copy(alpha = 0.55f)),
+                                    )
+                                    if (!shown) {
+                                        Text(
+                                            text = "Hidden",
+                                            style = BitsText.Small.copy(color = BitsColors.Muted.copy(alpha = 0.7f)),
+                                            modifier = Modifier
+                                                .padding(start = 8.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(Color(0x14EAE6DA))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                                        )
+                                    }
+                                }
                                 if (isSystemCategory(category.id)) {
-                                    // Invisible spacer that keeps the switches lined up with the other rows.
+                                    // Invisible spacer that keeps rows lined up with the ones that have Rename/Delete.
                                     Row(Modifier.alpha(0f).clearAndSetSemantics {}) {
                                         ActionLabel("Rename")
                                         ActionLabel("Delete")

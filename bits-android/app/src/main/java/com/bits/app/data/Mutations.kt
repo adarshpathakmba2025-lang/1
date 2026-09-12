@@ -69,3 +69,12 @@ fun BitsState.withAutoClear(enabled: Boolean): BitsState =
 
 fun BitsState.withTutorialSeen(seen: Boolean): BitsState =
     copy(preferences = preferences.copy(tutorialSeen = seen))
+
+fun BitsState.withPro(pro: Boolean): BitsState =
+    copy(preferences = preferences.copy(isPro = pro))
+
+/** Only takes effect if the theme is free or the user is already Pro; otherwise the state is unchanged. */
+fun BitsState.withWidgetTheme(themeId: String): BitsState {
+    val theme = WidgetThemes.find(themeId)
+    return if (theme.free || preferences.isPro) copy(preferences = preferences.copy(widgetThemeId = themeId)) else this
+}

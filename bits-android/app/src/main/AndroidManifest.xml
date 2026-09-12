@@ -22,6 +22,16 @@
             </intent-filter>
         </activity>
 
+        <!-- The floating card opened by tapping an item's text on the widget. See QuickEditActivity
+             for why a widget needs a real Activity to do this, rather than editing in place. -->
+        <activity
+            android:name=".QuickEditActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Bits.Floating"
+            android:windowSoftInputMode="adjustResize" />
+
         <receiver
             android:name=".widget.BitsWidgetReceiver"
             android:exported="true"
