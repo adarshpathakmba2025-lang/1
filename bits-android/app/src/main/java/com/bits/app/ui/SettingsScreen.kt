@@ -64,6 +64,7 @@ import androidx.compose.ui.layout.positionInParent
 import kotlinx.coroutines.launch
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.WidgetSettings
+import com.bits.app.data.WidgetTheme
 import com.bits.app.data.BitsState
 import com.bits.app.data.ClockStyle
 import com.bits.app.data.ClockStyles
@@ -511,9 +512,12 @@ private fun WidgetCard(
                     themePreview = null
                     onPreviewClock(null)
                 }
-                // Written out plainly: the chained elvis form confused type inference.
-                val themeLocked = themePreview != null && !state.canUseTheme(themePreview)
-                val clockLocked = clockPreview != null && !state.canUseClockStyle(clockPreview)
+                // Copied into locals: `themePreview` is a delegated property, which
+                // Kotlin refuses to smart-cast to non-null.
+                val previewedTheme = themePreview
+                val previewedClock = clockPreview
+                val themeLocked = previewedTheme != null && !state.canUseTheme(previewedTheme)
+                val clockLocked = previewedClock != null && !state.canUseClockStyle(previewedClock)
                 if (themeLocked || clockLocked) {
                     FilledAction("Unlock", onClick = onOpenPaywall)
                 }
