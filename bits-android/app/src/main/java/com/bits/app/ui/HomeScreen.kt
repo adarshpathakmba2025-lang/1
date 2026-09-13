@@ -67,6 +67,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.bits.app.R
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
+import com.bits.app.data.canShiftItem
+import com.bits.app.data.shiftItemCategory
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.BitsState
 import com.bits.app.data.Category
@@ -105,6 +109,7 @@ fun HomeScreen(
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var managing by rememberSaveable { mutableStateOf(false) }
+    var quickAddCategoryId by remember { mutableStateOf<String?>(null) }
     val categories = state.sortedCategories
     val selected = categories.firstOrNull { it.id == selectedCategoryId } ?: categories.first()
     val selectedIndex = categories.indexOfFirst { it.id == selected.id }.coerceAtLeast(0)
@@ -196,6 +201,18 @@ fun HomeScreen(
                 .clip(RoundedCornerShape(16.dp))
                 .background(BitsColors.Panel)
         ) {
+            val addTarget = quickAddCategoryId
+            if (addTarget != null) {
+                val targetName = categories.firstOrNull { it.id == addTarget }?.name.orEmpty()
+                QuickAddSheet(
+                    categoryName = targetName,
+                    onDismiss = { quickAddCategoryId = null },
+                    onAdd = { text ->
+                        repository.edit { it.addItem(addTarget, text) }
+                        quickAddCategoryId = null
+                    },
+                )
+            }
             when {
                 query.isNotBlank() -> SearchResults(
                     state = state,
@@ -219,6 +236,8 @@ fun HomeScreen(
                         category = selected,
                         items = state.itemsIn(selected.id),
                         repository = repository,
+                        state = state,
+                        onTitleTapped = { quickAddCategoryId = selected.id },
                         // Swiping sideways moves to the next or previous category.
                         onSwipeToPrevious = {
                             if (selectedIndex > 0) onSelectCategory(categories[selectedIndex - 1].id)
@@ -309,27 +328,41 @@ private fun CategoryChips(
     }
 }
 
+/**
+ * A category chip in the arcade style: square corners and a solid offset shadow,
+ * matching the games section rather than the rounded pill it used to be.
+ */
 @Composable
 private fun Chip(text: String, active: Boolean, subtle: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val background = when {
-        active -> BitsColors.Amber.copy(alpha = 0.18f)
-        subtle -> Color(0x800A1017)
-        else -> BitsColors.PanelBase.copy(alpha = 0.75f)
+    val fill = when {
+        active -> BitsColors.Amber
+        subtle -> Color(0xFF1B2735)
+        else -> BitsColors.PanelBase
     }
-    val style = when {
-        active -> BitsText.BodyBold.copy(color = BitsColors.Amber)
-        subtle -> BitsText.Body.copy(color = BitsColors.Muted)
-        else -> BitsText.Body
+    val ink = when {
+        active -> BitsColors.Bg
+        subtle -> BitsColors.Muted
+        else -> BitsColors.Ink
     }
-    Text(
-        text = text,
-        style = style,
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .background(background)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-    )
+    Box(modifier.padding(bottom = 3.dp, end = 3.dp)) {
+        Box(
+            Modifier
+                .padding(start = 3.dp, top = 3.dp)
+                .matchParentSize()
+                .background(Color(0x73000000))
+        )
+        Text(
+            text = text.uppercase(),
+            style = BitsText.ChipLabel.copy(color = ink),
+            maxLines = 1,
+            modifier = Modifier
+                .background(if (active) BitsColors.Amber else Color(0xFF33445A))
+                .padding(1.5.dp)
+                .background(fill)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        )
+    }
 }
 
 private fun subtitleFor(categoryId: String): String? = when (categoryId) {
@@ -343,8 +376,10 @@ private fun CategoryPanel(
     category: Category,
     items: List<Item>,
     repository: BitsRepository,
+    state: BitsState,
     onSwipeToPrevious: () -> Unit,
     onSwipeToNext: () -> Unit,
+    onTitleTapped: () -> Unit,
 ) {
     val listState = rememberLazyListState()
     var localItems by remember { mutableStateOf(items) }
@@ -395,7 +430,15 @@ private fun CategoryPanel(
             }
     ) {
         Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 6.dp)) {
-            Text(category.name, style = BitsText.Title)
+            // Tapping the title adds straight into this category, as it does on the widget.
+            Text(
+                text = category.name,
+                style = BitsText.Title,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable { onTitleTapped() }
+                    .padding(vertical = 2.dp),
+            )
             subtitleFor(category.id)?.let {
                 Text(it, style = BitsText.Small, modifier = Modifier.padding(top = 2.dp))
             }
@@ -421,6 +464,9 @@ private fun CategoryPanel(
                             item = item,
                             isDragging = isDragging,
                             isFirst = index == 0,
+                            canShiftBack = state.canShiftItem(item.id, forward = false),
+                            canShiftForward = state.canShiftItem(item.id, forward = true),
+                            onShift = { forward -> repository.edit { s -> s.shiftItemCategory(item.id, forward) } },
                             handleModifier = Modifier.draggableHandle(
                                 onDragStarted = { dragging = true },
                                 onDragStopped = {
@@ -461,6 +507,9 @@ private fun ItemRow(
     isDragging: Boolean,
     isFirst: Boolean,
     handleModifier: Modifier,
+    canShiftBack: Boolean,
+    canShiftForward: Boolean,
+    onShift: (Boolean) -> Unit,
     onToggle: () -> Unit,
     onEdit: (String) -> Unit,
     onDelete: () -> Unit,
@@ -484,6 +533,9 @@ private fun ItemRow(
         if (editing) {
             EditField(
                 initial = item.text,
+                canShiftBack = canShiftBack,
+                canShiftForward = canShiftForward,
+                onShift = onShift,
                 onSave = { text ->
                     editing = false
                     val trimmed = text.trim()
@@ -526,6 +578,9 @@ private fun ItemRow(
 @Composable
 private fun EditField(
     initial: String,
+    canShiftBack: Boolean,
+    canShiftForward: Boolean,
+    onShift: (Boolean) -> Unit,
     onSave: (String) -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -565,7 +620,19 @@ private fun EditField(
                 .height(1.dp)
                 .background(BitsColors.Amber)
         )
-        Row {
+        // Arrows on the left move the task between categories; actions stay on the right.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            ShiftArrow("\u2039", enabled = canShiftBack) {
+                finished = true
+                save()
+                onShift(false)
+            }
+            ShiftArrow("\u203A", enabled = canShiftForward) {
+                finished = true
+                save()
+                onShift(true)
+            }
+            Spacer(Modifier.weight(1f))
             TextAction("Save", BitsColors.Ink, save)
             // Two taps to delete, so a slip never loses a task.
             ArmedDelete {
@@ -735,6 +802,69 @@ private fun ManageCategories(state: BitsState, repository: BitsRepository, onHid
                 }
             },
         )
+    }
+}
+
+/** One of the move-between-categories arrows. Dimmed and inert at the ends of the list. */
+@Composable
+private fun ShiftArrow(glyph: String, enabled: Boolean, onClick: () -> Unit) {
+    Text(
+        text = glyph,
+        style = BitsText.Subtitle.copy(
+            color = if (enabled) BitsColors.Amber else BitsColors.Muted.copy(alpha = 0.3f),
+        ),
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+    )
+}
+
+/** A small dialog for adding straight into a category, matching the widget's card. */
+@Composable
+private fun QuickAddSheet(categoryName: String, onDismiss: () -> Unit, onAdd: (String) -> Unit) {
+    var value by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(18.dp))
+                .background(BitsColors.PanelBase)
+                .padding(20.dp)
+        ) {
+            Text("Add to $categoryName", style = BitsText.Small.copy(color = BitsColors.Amber))
+            BasicTextField(
+                value = value,
+                onValueChange = { value = it },
+                textStyle = BitsText.Body,
+                cursorBrush = SolidColor(BitsColors.Amber),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(onDone = {
+                    val t = value.trim()
+                    if (t.isNotEmpty()) onAdd(t) else onDismiss()
+                }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 200.dp)
+                    .verticalScroll(rememberScrollState())
+                    .focusRequester(focusRequester)
+                    .padding(top = 12.dp),
+            )
+            Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(BitsColors.Amber))
+            Row(Modifier.padding(top = 4.dp)) {
+                Spacer(Modifier.weight(1f))
+                TextAction("Cancel", BitsColors.Muted, onDismiss)
+                TextAction("Add", BitsColors.Ink) {
+                    val t = value.trim()
+                    if (t.isNotEmpty()) onAdd(t) else onDismiss()
+                }
+            }
+        }
     }
 }
 

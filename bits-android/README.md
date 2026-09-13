@@ -1,56 +1,58 @@
 # Bits
 
-Your external brain, living on your home screen. Android prototype v0.8.
+Your external brain, living on your home screen. Android prototype v0.9.
 
 ## Updating
 
 1. Upload these files to your repo, replacing the old ones. Commit.
-2. **Actions** -> green tick -> download **bits-apk** -> install over v0.7.
-3. Remove and re-add the widget.
+2. **Actions** -> green tick -> download **bits-apk** -> install over v0.8.
+3. Remove and re-add the widget. The **app icon has changed**, so a reboot or launcher
+   restart may be needed before the new one shows.
 
-Settings -> About -> Version should read **0.8.0**.
+Settings -> About -> Version should read **0.9.0**.
 
-## New in v0.8
+## New in v0.9
 
-**Settings** - the two duplicate widget sections are gone. Everything now lives under
-**Widget lists**, using the richer swatch tiles from the old theme card. Free users see one
-card that drives all their widgets; Pro users get one card per widget, each with its own
-categories, clock, theme and opacity, plus a "Match the app" option.
+**Your logo is in.** Background removed, trimmed, and fitted inside the adaptive-icon safe
+zone on a cream tile. Checked against circular, rounded and square launcher masks: nothing
+is cropped, including the pencil tip and the creature's legs.
 
-**Word Guess**
-- **No try limit.** Keep guessing until you solve it; the end screen reports how many
-  tries it took.
-- **A hint point for every completed row**, not just for solving.
-- **Full-screen instructions** on opening, in pixel styling, impossible to miss.
-  An **INSTRUCTIONS** button in the header reopens them any time.
-- **Keyboard fixed.** Every row now spans the same ten key-widths, so the middle row is no
-  longer wider than the others, and every key is the same fixed height.
-- Bigger letter cells with thin borders, matching your reference layout.
+**Move bits between categories.** Tap a bit, then use the arrows at bottom-left to send it
+to the category either side. Works in the app and on the widget, follows your own category
+order, picks up new categories automatically, and the arrow dims at each end. 47 tests
+cover the edges, reordering, category deletion and bad input.
 
-**Widget card** - long text is capped and scrolls, so Save/Delete/Cancel can never be
-pushed off screen. Undo and the "item isn't there anymore" message are gone from the
-widget entirely; deleting just closes the card.
+**Themes** - **Midnight Black** added (free, true black with crisp white), plus **Neon
+Nocturne** (Pro, electric cyan on ink) to make ten and keep the grid even. Two free now.
 
-**Memory Match** - emoji faces are much larger and easier to read at a glance.
+**Checkbox** - a proper wide rectangle, matching your reference.
 
-**Snake** - the D-pad is considerably bigger and more spread out.
+**Category chips** - now in the arcade style, square with an offset shadow.
 
-## Protecting the Pro perks
+**Tap a category title** in the app to add straight into it, exactly like the widget.
 
-The easter egg is one atomic all-or-nothing claim. Restoring a backup never grants Pro or
-unlocks, because entitlements belong to the device.
+**The widget card now wears the widget's theme** instead of always being navy and amber.
 
-**The honest limit:** Bits is fully offline, so all state is a file on the user's device.
-Anyone willing to root their phone or decompile the APK can change it. Only server-side or
-Play Billing verification prevents that.
+**Widget** - category names are noticeably larger.
+
+**Memory Match** - "Score" is now **TRIES**, and **BEST** holds the fewest tries you have
+ever cleared a round in, with a small pixel reset beside it.
+
+**Flappy** - ramps up past 20, and again past 47, with a floor on the gap and a ceiling on
+speed so a high score stays hard rather than impossible. An autopilot test reaches 60.
+
+**Settings** - opacity now sits directly under the preview; long-pressing a theme or clock
+scrolls back to the preview automatically; "Match the app" is gone, and the matching theme
+simply shows as selected.
+
+**Tour** - every card is now in the retro pixel frame, step five reworded, and a new step
+covers the category arrows.
+
+**About** - Rate Bits now reads "Tell us what to improve - every review is read".
 
 ## Not live yet
 
 **Payments.** Test Pro via Settings -> Developer -> **Simulate Pro**.
-
-## The hidden thing
-
-Four taps on the "Bits" title. One theme, one game, one clock style, once per device.
 
 ## Before publishing
 
@@ -62,8 +64,8 @@ Four taps on the "Bits" title. One theme, one game, one clock style, once per de
 
 ## Project layout
 
-- `data/` model, midnight move, storage, backups, themes, clocks, per-widget boards, hints
-- `games/` pure game rules, unit-tested (261 checks pass)
+- `data/` model, midnight move, storage, backups, themes, clocks, boards, hints, shifting
+- `games/` pure game rules, unit-tested (323 checks pass)
 - `widget/` the home screen widget (Jetpack Glance)
 - `time/` wakes the app after midnight, on reboot, on time zone changes
 - `ui/` screens, onboarding, retro games, Pro page, tour, armed delete

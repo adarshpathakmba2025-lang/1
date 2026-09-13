@@ -161,20 +161,36 @@ fun ArcadeHeader(title: String, onBack: () -> Unit, trailing: (@Composable () ->
     }
 }
 
-/** Score readout used across the games. */
+/**
+ * Score readout used across the games. [leftLabel]/[rightLabel] let a game rename them,
+ * and [onResetBest] adds a small pixel reset next to the right-hand figure.
+ */
 @Composable
-fun ScoreBar(score: Int, best: Int, modifier: Modifier = Modifier) {
+fun ScoreBar(
+    score: Int,
+    best: Int,
+    modifier: Modifier = Modifier,
+    leftLabel: String = "SCORE",
+    rightLabel: String = "BEST",
+    onResetBest: (() -> Unit)? = null,
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        ScoreChip("SCORE", score, Arcade.Glow, Modifier.weight(1f))
-        ScoreChip("BEST", best, BitsColors.Muted, Modifier.weight(1f))
+        ScoreChip(leftLabel, score, Arcade.Glow, Modifier.weight(1f))
+        ScoreChip(rightLabel, best, BitsColors.Muted, Modifier.weight(1f), onResetBest)
     }
 }
 
 @Composable
-private fun ScoreChip(label: String, value: Int, accent: Color, modifier: Modifier = Modifier) {
+private fun ScoreChip(
+    label: String,
+    value: Int,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    onReset: (() -> Unit)? = null,
+) {
     Column(
         modifier
             .background(Arcade.Border)
@@ -182,8 +198,21 @@ private fun ScoreChip(label: String, value: Int, accent: Color, modifier: Modifi
             .background(Arcade.Panel)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Text(label, style = BitsText.PixelBody)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, style = BitsText.PixelBody, modifier = Modifier.weight(1f))
+            if (onReset != null) {
+                // A blocky arrow-loop, drawn rather than using a rounded system icon.
+                Text(
+                    text = "\u21BB",
+                    style = BitsText.PixelBody.copy(color = Arcade.Glow),
+                    modifier = Modifier
+                        .background(Arcade.Border)
+                        .clickable(onClick = onReset)
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                )
+            }
+        }
         Spacer(Modifier.height(6.dp))
-        Text(value.toString(), style = BitsText.PixelScore.copy(color = accent))
+        Text(if (value == 0) "\u2014" else value.toString(), style = BitsText.PixelScore.copy(color = accent))
     }
 }

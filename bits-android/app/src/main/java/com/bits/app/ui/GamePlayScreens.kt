@@ -92,12 +92,22 @@ private fun GameFrame(
     score: Int,
     best: Int,
     onBack: () -> Unit,
+    leftLabel: String = "SCORE",
+    rightLabel: String = "BEST",
+    onResetBest: (() -> Unit)? = null,
     footer: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Arcade.Screen)) {
         ArcadeHeader(title = title, onBack = onBack)
-        ScoreBar(score = score, best = best, modifier = Modifier.padding(horizontal = 14.dp))
+        ScoreBar(
+            score = score,
+            best = best,
+            modifier = Modifier.padding(horizontal = 14.dp),
+            leftLabel = leftLabel,
+            rightLabel = rightLabel,
+            onResetBest = onResetBest,
+        )
         Box(
             Modifier
                 .weight(1f)
@@ -301,7 +311,12 @@ private fun glyphFor(deck: MemoryDeck, symbol: Int): String? = when (deck) {
 }
 
 @Composable
-fun MemoryScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
+fun MemoryScreen(
+    bestTries: Int,
+    onCleared: (Int) -> Unit,
+    onResetBest: () -> Unit,
+    onBack: () -> Unit,
+) {
     var level by remember { mutableIntStateOf(1) }
     var deal by remember { mutableStateOf(MemoryMatch.newLevel(1)) }
     var cards by remember { mutableStateOf(deal.cards) }
@@ -310,13 +325,11 @@ fun MemoryScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
     var celebrate by remember { mutableStateOf(false) }
     val complete = MemoryMatch.isComplete(cards)
 
-    // Fewer moves is better, and later levels are worth more.
-    fun scoreFor(moveCount: Int) = ((100 - moveCount * 2).coerceAtLeast(10)) * level
-
     LaunchedEffect(complete) {
         if (complete) {
             celebrate = true
-            onScore(scoreFor(moves))
+            // Flips taken, so fewer is better; the bar records the lowest ever.
+            onCleared(moves)
         }
     }
 
@@ -342,12 +355,15 @@ fun MemoryScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
     Box {
         GameFrame(
             title = "Memory Match",
-            score = if (complete) scoreFor(moves) else moves,
-            best = best,
+            score = moves,
+            best = bestTries,
+            leftLabel = "TRIES",
+            rightLabel = "BEST",
+            onResetBest = onResetBest,
             onBack = onBack,
             footer = {
                 if (complete) {
-                    GameOverBanner("Cleared in $moves moves") { start(level + 1) }
+                    GameOverBanner("Cleared in $moves tries") { start(level + 1) }
                 } else {
                     Text(deal.deck.label.uppercase(), style = BitsText.PixelBody)
                 }

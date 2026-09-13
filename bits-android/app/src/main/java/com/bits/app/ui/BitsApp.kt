@@ -42,7 +42,9 @@ import com.bits.app.data.spendPoints
 import com.bits.app.data.startWordleDay
 import com.bits.app.data.withWordleGuess
 import com.bits.app.data.withHideHintSeen
+import com.bits.app.data.resetMemoryBest
 import com.bits.app.data.withHighScore
+import com.bits.app.data.withMemoryTries
 import com.bits.app.data.withOnboardingDone
 import com.bits.app.data.withTutorialSeen
 import com.bits.app.ui.theme.BitsColors
@@ -245,8 +247,9 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                                     onBack = back,
                                 )
                                 GameId.Memory -> MemoryScreen(
-                                    best = current.highScore(GameId.Memory.key),
-                                    onScore = { record(GameId.Memory.key, it) },
+                                    bestTries = current.preferences.memoryBestTries,
+                                    onCleared = { tries -> repository.edit { it.withMemoryTries(tries) } },
+                                    onResetBest = { repository.edit { it.resetMemoryBest() } },
                                     onBack = back,
                                 )
                                 GameId.TicTacToe -> TicTacToeScreen(onBack = back)

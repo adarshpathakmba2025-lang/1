@@ -30,6 +30,17 @@ object WidgetThemes {
         doneColor = 0xFF667281,
         free = true,
     )
+    /** Free, and inspired by a true-black widget: white headings, a green live dot. */
+    val MidnightBlack = WidgetTheme(
+        id = "midnight_black",
+        displayName = "Midnight Black",
+        blurb = "True black, crisp white",
+        accent = 0xFFFFFFFF,
+        backgroundTint = 0xFF000000,
+        ink = 0xFFF4F4F4,
+        doneColor = 0xFF6E6E6E,
+        free = true,
+    )
     val Midnight = WidgetTheme(
         id = "midnight",
         displayName = "Blue Hour",
@@ -101,7 +112,19 @@ object WidgetThemes {
         free = false,
     )
 
-    val all = listOf(Classic, Midnight, Forest, Ember, Ocean, Royal, Sand, Rose)
+    /** A tenth theme keeps the settings grid even, and this one is the moodiest of them. */
+    val Nocturne = WidgetTheme(
+        id = "nocturne",
+        displayName = "Neon Nocturne",
+        blurb = "Electric cyan on ink",
+        accent = 0xFF4DE2C0,
+        backgroundTint = 0xFF0A1118,
+        ink = 0xFFDDF5EE,
+        doneColor = 0xFF4A6B66,
+        free = false,
+    )
+
+    val all = listOf(Classic, MidnightBlack, Midnight, Forest, Ember, Ocean, Royal, Sand, Rose, Nocturne)
 
     fun find(id: String): WidgetTheme = all.firstOrNull { it.id == id } ?: Classic
 }

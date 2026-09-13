@@ -52,7 +52,7 @@ import kotlin.math.roundToInt
 fun BitsCheckbox(checked: Boolean, onToggle: () -> Unit, label: String) {
     Box(
         modifier = Modifier
-            .size(width = 40.dp, height = 40.dp)
+            .size(width = 44.dp, height = 40.dp)
             .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle() })
             .semantics { contentDescription = label },
         // Sits against the first line of text, so multi-line items stay tidy.
@@ -70,10 +70,11 @@ fun BitsCheckbox(checked: Boolean, onToggle: () -> Unit, label: String) {
  */
 @Composable
 fun CheckVisual(checked: Boolean, size: Dp) {
-    val shape = RoundedCornerShape(size * 0.12f)
-    val base = Modifier.size(width = size * 1.08f, height = size).clip(shape)
+    // Noticeably wider than tall, with a barely-there radius, as in the reference.
+    val shape = RoundedCornerShape(size * 0.10f)
+    val base = Modifier.size(width = size * 1.35f, height = size * 0.92f).clip(shape)
     Box(
-        modifier = if (checked) base.background(BitsColors.Done) else base.border(1.5.dp, BitsColors.Muted, shape),
+        modifier = if (checked) base.background(BitsColors.Done) else base.border(1.4.dp, BitsColors.Muted, shape),
         contentAlignment = Alignment.Center,
     ) {
         if (checked) {

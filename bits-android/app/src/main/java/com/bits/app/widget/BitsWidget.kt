@@ -175,7 +175,7 @@ private fun HeaderLine(context: Context, category: Category, first: Boolean, acc
     // Tapping a heading opens the floating "add to this list" card rather than the whole app.
     Text(
         text = category.name.uppercase(),
-        style = TextStyle(color = ColorProvider(accent), fontSize = 13.sp, fontWeight = FontWeight.Bold),
+        style = TextStyle(color = ColorProvider(accent), fontSize = 16.sp, fontWeight = FontWeight.Bold),
         modifier = GlanceModifier
             .fillMaxWidth()
             .padding(top = if (first) 0.dp else 15.dp, bottom = 5.dp, end = 14.dp)

@@ -45,6 +45,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import com.bits.app.data.BitsState
+import com.bits.app.data.WidgetThemes
+import com.bits.app.data.canShiftItem
+import com.bits.app.data.shiftItemCategory
+import androidx.compose.ui.graphics.Color
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.addItem
 import com.bits.app.data.deleteItem
@@ -86,8 +91,44 @@ class QuickEditActivity : ComponentActivity() {
     }
 }
 
+/** One of the move-between-categories arrows, dimmed at the ends of the list. */
 @Composable
-private fun CardShell(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+private fun ShiftArrow(glyph: String, enabled: Boolean, skin: CardSkin, onClick: () -> Unit) {
+    Text(
+        text = glyph,
+        style = BitsText.Subtitle.copy(
+            color = if (enabled) skin.accent else skin.muted.copy(alpha = 0.35f),
+        ),
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+    )
+}
+
+/** The colours this card should wear, taken from whatever theme the widget is using. */
+private data class CardSkin(
+    val surface: Color,
+    val ink: Color,
+    val accent: Color,
+    val muted: Color,
+)
+
+@Composable
+private fun skinFor(state: BitsState?): CardSkin {
+    val theme = state?.activeTheme ?: WidgetThemes.Classic
+    val ink = Color(theme.ink)
+    return CardSkin(
+        // Lifted a little off the widget's own tint so the card reads as a layer above it.
+        surface = Color(theme.backgroundTint),
+        ink = ink,
+        accent = Color(theme.accent),
+        muted = ink.copy(alpha = 0.55f),
+    )
+}
+
+@Composable
+private fun CardShell(skin: CardSkin, onDismiss: () -> Unit, content: @Composable () -> Unit) {
     Box(
         Modifier
             .fillMaxSize()
@@ -101,7 +142,7 @@ private fun CardShell(onDismiss: () -> Unit, content: @Composable () -> Unit) {
                 .padding(20.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
-                .background(BitsColors.PanelBase)
+                .background(skin.surface)
                 // Swallows taps so they don't dismiss the card.
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                 .padding(20.dp)
@@ -116,6 +157,7 @@ private fun EditorField(
     value: TextFieldValue,
     onValueChange: (TextFieldValue) -> Unit,
     onSubmit: () -> Unit,
+    skin: CardSkin,
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -127,8 +169,8 @@ private fun EditorField(
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        textStyle = BitsText.Body,
-        cursorBrush = SolidColor(BitsColors.Amber),
+        textStyle = BitsText.Body.copy(color = skin.ink),
+        cursorBrush = SolidColor(skin.accent),
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.Sentences,
             imeAction = ImeAction.Done,
@@ -141,6 +183,7 @@ private fun EditorField(
 @Composable
 private fun QuickAddCard(categoryId: String, repository: BitsRepository, onDone: () -> Unit) {
     val state by repository.state.collectAsState()
+    val skin = skinFor(state)
     LaunchedEffect(Unit) { repository.load() }
 
     val category = state?.categories?.firstOrNull { it.id == categoryId }
@@ -159,29 +202,30 @@ private fun QuickAddCard(categoryId: String, repository: BitsRepository, onDone:
     // Backing out, or tapping away, keeps whatever was typed rather than throwing it away.
     val latestSave by rememberUpdatedState(save)
 
-    CardShell(onDismiss = { latestSave() }) {
+    CardShell(skin = skin, onDismiss = { latestSave() }) {
         Text(
             text = "Add to ${category?.name ?: "list"}",
-            style = BitsText.Small.copy(color = BitsColors.Amber),
+            style = BitsText.Small.copy(color = skin.accent),
         )
         EditorField(
             value = value,
             onValueChange = { value = it },
             onSubmit = save,
+            skin = skin,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 220.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(top = 10.dp),
         )
-        Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(BitsColors.Amber))
+        Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(skin.accent))
         Row(Modifier.padding(top = 4.dp)) {
             Spacer(Modifier.weight(1f))
-            TextAction("Cancel", BitsColors.Muted) {
+            TextAction("Cancel", skin.muted) {
                 saved = true
                 onDone()
             }
-            TextAction("Add", BitsColors.Ink) { save() }
+            TextAction("Add", skin.ink) { save() }
         }
     }
 }
@@ -189,14 +233,15 @@ private fun QuickAddCard(categoryId: String, repository: BitsRepository, onDone:
 @Composable
 private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: () -> Unit) {
     val state by repository.state.collectAsState()
+    val skin = skinFor(state)
     LaunchedEffect(Unit) { repository.load() }
 
     val current = state
     val item = itemId?.let { id -> current?.items?.firstOrNull { it.id == id } }
 
     if (current == null) {
-        CardShell(onDismiss = onDone) {
-            Text("Loading\u2026", style = BitsText.Body.copy(color = BitsColors.Muted))
+        CardShell(skin = skin, onDismiss = onDone) {
+            Text("Loading\u2026", style = BitsText.Body.copy(color = skin.muted))
         }
         return
     }
@@ -221,7 +266,7 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
     }
     val latestSave by rememberUpdatedState(save)
 
-    CardShell(onDismiss = { latestSave() }) {
+    CardShell(skin = skin, onDismiss = { latestSave() }) {
         Row(verticalAlignment = Alignment.Top) {
             BitsCheckbox(
                 checked = item.done,
@@ -234,6 +279,7 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
                 value = value,
                 onValueChange = { value = it },
                 onSubmit = save,
+                skin = skin,
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(max = 220.dp)
@@ -241,16 +287,31 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
                     .padding(top = 9.dp),
             )
         }
-        Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(BitsColors.Amber))
-        Row(Modifier.padding(top = 4.dp)) {
-            // Same two-tap delete as in the app, so the widget can't lose a task by accident.
+        Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(skin.accent))
+        // Arrows move the task between categories; actions sit on the right.
+        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            val current = state
+            val canBack = current?.canShiftItem(item.id, forward = false) == true
+            val canForward = current?.canShiftItem(item.id, forward = true) == true
+            ShiftArrow("\u2039", canBack, skin) {
+                settled = true
+                save()
+                repository.edit { it.shiftItemCategory(item.id, forward = false) }
+                onDone()
+            }
+            ShiftArrow("\u203A", canForward, skin) {
+                settled = true
+                save()
+                repository.edit { it.shiftItemCategory(item.id, forward = true) }
+                onDone()
+            }
+            Spacer(Modifier.weight(1f))
+            TextAction("Save", skin.ink) { save() }
             ArmedDelete {
                 settled = true
                 repository.deleteItemWithUndo(item.id)
                 onDone()
             }
-            Spacer(Modifier.weight(1f))
-            TextAction("Save", BitsColors.Ink) { save() }
         }
     }
 }

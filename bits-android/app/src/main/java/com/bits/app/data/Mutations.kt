@@ -47,6 +47,55 @@ fun BitsState.restoreItem(item: Item): BitsState {
     return copy(items = shifted + item)
 }
 
+/**
+ * Moves an item one category left or right in the user's own category order.
+ *
+ * Returns the state untouched whenever the move isn't possible: unknown item, unknown
+ * category, or already at the first/last category. That makes the UI's job simply to dim
+ * the arrow, while the rules here stay the single source of truth.
+ */
+fun BitsState.shiftItemCategory(itemId: String, forward: Boolean): BitsState {
+    val item = items.firstOrNull { it.id == itemId } ?: return this
+    val ordered = sortedCategories
+    val index = ordered.indexOfFirst { it.id == item.categoryId }
+    if (index < 0) return this
+    val targetIndex = if (forward) index + 1 else index - 1
+    val target = ordered.getOrNull(targetIndex) ?: return this
+
+    // It lands on top of the destination unless the user prefers new items at the bottom.
+    return if (preferences.addToBottom) {
+        val max = items.filter { it.categoryId == target.id }.maxOfOrNull { it.position } ?: -1
+        copy(items = items.map { if (it.id == itemId) it.copy(categoryId = target.id, position = max + 1) else it })
+    } else {
+        val shifted = items.map {
+            when {
+                it.id == itemId -> it.copy(categoryId = target.id, position = 0)
+                it.categoryId == target.id -> it.copy(position = it.position + 1)
+                else -> it
+            }
+        }
+        copy(items = shifted)
+    }
+}
+
+/** Whether a shift in that direction would actually do anything. */
+fun BitsState.canShiftItem(itemId: String, forward: Boolean): Boolean {
+    val item = items.firstOrNull { it.id == itemId } ?: return false
+    val ordered = sortedCategories
+    val index = ordered.indexOfFirst { it.id == item.categoryId }
+    if (index < 0) return false
+    return if (forward) index < ordered.lastIndex else index > 0
+}
+
+/** The category an item would land in, for labelling the arrows. */
+fun BitsState.shiftTarget(itemId: String, forward: Boolean): Category? {
+    val item = items.firstOrNull { it.id == itemId } ?: return null
+    val ordered = sortedCategories
+    val index = ordered.indexOfFirst { it.id == item.categoryId }
+    if (index < 0) return null
+    return ordered.getOrNull(if (forward) index + 1 else index - 1)
+}
+
 fun BitsState.reorderItems(orderedIds: List<String>): BitsState {
     val positions = orderedIds.withIndex().associate { (index, id) -> id to index }
     return copy(items = items.map { item -> positions[item.id]?.let { item.copy(position = it) } ?: item })
@@ -207,6 +256,17 @@ fun BitsState.spendOnReveal(index: Int, cost: Int): BitsState {
 fun BitsState.spendPoints(cost: Int): BitsState =
     if (preferences.hintPoints < cost) this
     else copy(preferences = preferences.copy(hintPoints = preferences.hintPoints - cost))
+
+/** Keeps the lowest clear ever. Zero means no record yet, so the first clear always sticks. */
+fun BitsState.withMemoryTries(tries: Int): BitsState {
+    if (tries <= 0) return this
+    val best = preferences.memoryBestTries
+    return if (best in 1 until tries) this
+    else copy(preferences = preferences.copy(memoryBestTries = tries))
+}
+
+fun BitsState.resetMemoryBest(): BitsState =
+    copy(preferences = preferences.copy(memoryBestTries = 0))
 
 fun BitsState.withOnboardingDone(): BitsState =
     copy(preferences = preferences.copy(onboardingDone = true))

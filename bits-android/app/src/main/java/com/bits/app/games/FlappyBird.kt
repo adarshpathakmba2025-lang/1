@@ -33,6 +33,30 @@ data class FlappyState(
 }
 
 object FlappyBird {
+
+    /**
+     * Difficulty by score. It stays gentle to 20, tightens through the twenties and
+     * thirties, then tightens again past 47 while deliberately holding a floor on the gap
+     * and a ceiling on speed, so a very high score stays hard rather than impossible.
+     */
+    fun gapFor(score: Int): Float = when {
+        score < 20 -> FlappyState.GAP
+        score < 47 -> (FlappyState.GAP - (score - 20) * 0.0028f).coerceAtLeast(0.305f)
+        else -> (0.305f - (score - 47) * 0.0016f).coerceAtLeast(0.255f)
+    }
+
+    fun speedFor(score: Int): Float = when {
+        score < 20 -> FlappyState.PIPE_SPEED
+        score < 47 -> (FlappyState.PIPE_SPEED + (score - 20) * 0.00006f).coerceAtMost(0.0058f)
+        else -> (0.0058f + (score - 47) * 0.00004f).coerceAtMost(0.0072f)
+    }
+
+    fun spacingFor(score: Int): Float = when {
+        score < 20 -> FlappyState.PIPE_SPACING
+        score < 47 -> (FlappyState.PIPE_SPACING - (score - 20) * 0.004f).coerceAtLeast(0.52f)
+        else -> (0.52f - (score - 47) * 0.002f).coerceAtLeast(0.45f)
+    }
+
     fun newGame(): FlappyState = FlappyState(
         birdY = 0.45f,
         velocity = 0f,
@@ -55,11 +79,12 @@ object FlappyBird {
             .coerceIn(FlappyState.MAX_RISE, FlappyState.MAX_FALL)
         val birdY = state.birdY + velocity
 
-        val moved = state.pipes.map { it.copy(x = it.x - FlappyState.PIPE_SPEED) }
+        val gap = gapFor(state.score)
+        val moved = state.pipes.map { it.copy(x = it.x - speedFor(state.score)) }
             .filter { it.x + FlappyState.PIPE_WIDTH > -0.05f }
-        val needsPipe = moved.isEmpty() || moved.maxOf { it.x } < FlappyState.PIPE_SPACING
+        val needsPipe = moved.isEmpty() || moved.maxOf { it.x } < spacingFor(state.score)
         val pipes = if (needsPipe) {
-            moved + Pipe(x = 1.05f, gapTop = 0.10f + random.nextFloat() * (0.90f - FlappyState.GAP - 0.10f))
+            moved + Pipe(x = 1.05f, gapTop = 0.10f + random.nextFloat() * (0.90f - gap - 0.10f))
         } else {
             moved
         }
@@ -73,7 +98,7 @@ object FlappyBird {
         val hitPipe = pipes.any { pipe ->
             val overlapsX = FlappyState.BIRD_X + FlappyState.BIRD_SIZE > pipe.x &&
                 FlappyState.BIRD_X < pipe.x + FlappyState.PIPE_WIDTH
-            val insideGap = birdY > pipe.gapTop && birdY + FlappyState.BIRD_SIZE < pipe.gapTop + FlappyState.GAP
+            val insideGap = birdY > pipe.gapTop && birdY + FlappyState.BIRD_SIZE < pipe.gapTop + gap
             overlapsX && !insideGap
         }
 

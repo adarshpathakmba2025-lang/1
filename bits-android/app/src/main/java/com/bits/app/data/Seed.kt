@@ -10,7 +10,10 @@ object Seed {
             Category(GROCERY_ID, "Grocery list", 2),
         )
         val content = listOf(
-            TODAY_ID to listOf("Rate us on the Play Store! :D"),
+            TODAY_ID to listOf(
+                "Rate us on the Play Store! :D",
+                "Tap on the category name to add a new bit.",
+            ),
             TOMORROW_ID to listOf("Recommend us to your friends too! ^_^"),
             GROCERY_ID to listOf("Tomatoes", "Tofu"),
         )

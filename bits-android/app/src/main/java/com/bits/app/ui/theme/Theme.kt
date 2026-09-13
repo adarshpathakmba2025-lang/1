@@ -75,6 +75,8 @@ object BitsText {
     val WordCell = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 30.sp, lineHeight = 34.sp, color = BitsColors.Ink)
     /** Small enough that DEL and GO fit their keys without shrinking the letter keys. */
     val KeyCap = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 9.sp, lineHeight = 14.sp, color = BitsColors.Ink)
+    /** Category chips on the home page, in the arcade face. */
+    val ChipLabel = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 9.sp, lineHeight = 14.sp, color = BitsColors.Ink)
     val PixelCaption = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 7.sp, lineHeight = 13.sp, color = BitsColors.Muted)
     val PixelBody = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 9.sp, lineHeight = 17.sp, color = BitsColors.Muted)
     val PixelScore = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 11.sp, lineHeight = 18.sp, color = BitsColors.Amber)

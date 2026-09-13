@@ -56,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
 
@@ -126,13 +127,18 @@ private val tourSteps = listOf(
     ),
     TourStep(
         title = plain("Categories and lists"),
-        body = "You can maintain separate lists under multiple categories. Swipe sideways to flip between them.",
+        body = "You can maintain separate lists under multiple categories for all the widgets you maintain. Swipe sideways to flip between them.",
         target = TutorialTarget.CHIPS,
     ),
     TourStep(
         title = tomorrowNeverComes,
         body = "Anything unfinished in Tomorrow automatically moves into Today when the clock hits midnight.",
         target = TutorialTarget.CHIPS,
+    ),
+    TourStep(
+        title = plain("Shift it across"),
+        body = "Tap a bit, then use \u2039 and \u203A to send it to the category on either side.",
+        target = TutorialTarget.ITEM,
     ),
     TourStep(
         title = plain("Make it yours"),
@@ -216,7 +222,9 @@ fun TutorialOverlay(targets: TutorialTargets, onFinish: () -> Unit) {
 
         // The card has no tap handler of its own, so taps on its text fall through to the zones
         // beneath it. Only its buttons (Skip tour, Get started) catch taps directly.
-        Column(
+        // The card wears the same arcade frame as the games section: square corners
+        // and a solid offset shadow.
+        Box(
             modifier = Modifier
                 .align(
                     when {
@@ -228,36 +236,58 @@ fun TutorialOverlay(targets: TutorialTargets, onFinish: () -> Unit) {
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(16.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(BitsColors.PanelBase)
-                .padding(start = 20.dp, end = 12.dp, top = 18.dp, bottom = 10.dp)
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                tourSteps.indices.forEach { i ->
-                    Spacer(
-                        Modifier
-                            .size(if (i == index) 18.dp else 6.dp, 6.dp)
-                            .clip(CircleShape)
-                            .background(if (i == index) BitsColors.Amber else BitsColors.Muted.copy(alpha = 0.5f))
-                    )
+            Box(
+                Modifier
+                    .padding(start = 5.dp, top = 5.dp)
+                    .matchParentSize()
+                    .background(Color(0x99000000))
+            )
+            Column(
+                Modifier
+                    .padding(end = 5.dp, bottom = 5.dp)
+                    .background(Arcade.Border)
+                    .padding(2.dp)
+                    .background(Arcade.Panel)
+                    .padding(start = 18.dp, end = 12.dp, top = 16.dp, bottom = 10.dp)
+            ) {
+                // Square pixel blips instead of round dots.
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    tourSteps.indices.forEach { i ->
+                        Spacer(
+                            Modifier
+                                .size(if (i == index) 16.dp else 6.dp, 6.dp)
+                                .background(if (i == index) Arcade.Glow else BitsColors.Muted.copy(alpha = 0.45f))
+                        )
+                    }
                 }
-            }
-            Spacer(Modifier.height(12.dp))
-            Text(step.title, style = BitsText.Subtitle)
-            Text(step.body, style = BitsText.Body, modifier = Modifier.padding(top = 6.dp, end = 8.dp))
-            Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isLast) {
-                    Spacer(Modifier.weight(1f))
-                    FilledAction("Get started", onClick = onFinish)
-                } else {
-                    TextAction("Skip tour", BitsColors.Muted, onFinish)
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        text = if (index == 0) "Tap right to continue" else "Tap left or right",
-                        style = BitsText.Small.copy(color = BitsColors.Muted.copy(alpha = 0.7f)),
-                        modifier = Modifier.padding(end = 8.dp),
-                    )
+                Spacer(Modifier.height(14.dp))
+                Text(step.title, style = BitsText.PixelHeading.copy(color = Arcade.Glow))
+                Text(
+                    text = step.body,
+                    style = BitsText.PixelBody.copy(color = BitsColors.Ink, lineHeight = 19.sp),
+                    modifier = Modifier.padding(top = 10.dp, end = 6.dp),
+                )
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isLast) {
+                        Spacer(Modifier.weight(1f))
+                        PixelButton("Get started", onClick = onFinish)
+                    } else {
+                        Text(
+                            text = "SKIP",
+                            style = BitsText.PixelBody.copy(color = BitsColors.Muted),
+                            modifier = Modifier
+                                .clickable(onClick = onFinish)
+                                .padding(horizontal = 8.dp, vertical = 10.dp),
+                        )
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            text = if (index == 0) "TAP RIGHT \u203A" else "\u2039 TAP \u203A",
+                            style = BitsText.PixelBody.copy(color = BitsColors.Muted.copy(alpha = 0.75f)),
+                            modifier = Modifier.padding(end = 6.dp),
+                        )
+                    }
                 }
             }
         }

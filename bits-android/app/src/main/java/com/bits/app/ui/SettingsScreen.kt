@@ -56,12 +56,17 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.bits.app.R
+import androidx.compose.foundation.ScrollState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import kotlinx.coroutines.launch
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.WidgetSettings
 import com.bits.app.data.BitsState
 import com.bits.app.data.ClockStyle
 import com.bits.app.data.ClockStyles
-import com.bits.app.data.WidgetTheme
 import com.bits.app.data.WidgetThemes
 import com.bits.app.data.addCategory
 import com.bits.app.data.editBoard
@@ -137,15 +142,23 @@ fun SettingsScreen(
             Text("Settings", style = BitsText.Brand, modifier = Modifier.padding(start = 4.dp))
         }
 
+        val pageScroll = rememberScrollState()
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(pageScroll)
                 .padding(start = 16.dp, end = 16.dp, bottom = 28.dp)
         ) {
             ProBanner(state, onOpenPaywall)
 
-            WidgetListsSection(state, repository, onOpenPaywall, clockPreview) { clockPreview = it }
+            WidgetListsSection(
+                state = state,
+                repository = repository,
+                onOpenPaywall = onOpenPaywall,
+                clockPreview = clockPreview,
+                onPreviewClock = { clockPreview = it },
+                pageScroll = pageScroll,
+            )
 
             SectionLabel("Lists")
             Card {
@@ -186,7 +199,7 @@ fun SettingsScreen(
 @Composable
 private fun RateRow() {
     val context = LocalContext.current
-    LinkRow("Rate Bits", "A quick rating helps a lot") { openStoreListing(context) }
+    LinkRow("Rate Bits", "Tell us what to improve \u2014 every review is read") { openStoreListing(context) }
 }
 @Composable
 private fun SectionLabel(text: String) {
@@ -325,6 +338,7 @@ private fun WidgetListsSection(
     onOpenPaywall: () -> Unit,
     clockPreview: String?,
     onPreviewClock: (String?) -> Unit,
+    pageScroll: ScrollState,
 ) {
     val context = LocalContext.current
     val ids by produceState(initialValue = placedWidgetIds(context)) {
@@ -369,6 +383,7 @@ private fun WidgetListsSection(
                 clockPreview = clockPreview,
                 onPreviewClock = onPreviewClock,
                 appWidgetId = null,
+                pageScroll = pageScroll,
             )
             Card {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -397,6 +412,7 @@ private fun WidgetListsSection(
                 clockPreview = clockPreview,
                 onPreviewClock = onPreviewClock,
                 appWidgetId = appWidgetId,
+                pageScroll = pageScroll,
             )
         }
     }
@@ -418,7 +434,17 @@ private fun WidgetCard(
     clockPreview: String?,
     onPreviewClock: (String?) -> Unit,
     appWidgetId: Int?,
+    pageScroll: ScrollState,
 ) {
+    val scope = rememberCoroutineScope()
+    // Where this card's preview sits on the page, so a long-press can jump back to it.
+    var previewOffset by remember { mutableIntStateOf(0) }
+
+    // Long-pressing a swatch is pointless if the preview is off screen, so scroll to it.
+    fun jumpToPreview() {
+        scope.launch { pageScroll.animateScrollTo((previewOffset - 40).coerceAtLeast(0)) }
+    }
+
     var expanded by remember { mutableStateOf(appWidgetId == null) }
     var opacity by remember(settings.opacity) { mutableFloatStateOf(settings.opacity) }
     var themePreview by remember { mutableStateOf<String?>(null) }
@@ -458,7 +484,19 @@ private fun WidgetCard(
             themeOverrideId = themePreview,
             clockOverrideId = clockPreview,
             settings = settings,
-            modifier = Modifier.fillMaxWidth().height(260.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(260.dp)
+                .onGloballyPositioned { previewOffset = pageScroll.value + it.positionInParent().y.toInt() },
+        )
+
+        OpacitySlider(
+            label = "Background opacity",
+            value = opacity,
+            onValueChange = { value ->
+                opacity = value
+                apply { it.copy(opacity = value) }
+            },
         )
 
         val previewing = themePreview ?: clockPreview
@@ -474,10 +512,8 @@ private fun WidgetCard(
                     onPreviewClock(null)
                 }
                 // Written out plainly: the chained elvis form confused type inference.
-                val themePreviewSnapshot = themePreview
-                val clockPreviewSnapshot = clockPreview
-                val themeLocked = themePreviewSnapshot != null && !state.canUseTheme(themePreviewSnapshot)
-                val clockLocked = clockPreviewSnapshot != null && !state.canUseClockStyle(clockPreviewSnapshot)
+                val themeLocked = themePreview != null && !state.canUseTheme(themePreview)
+                val clockLocked = clockPreview != null && !state.canUseClockStyle(clockPreview)
                 if (themeLocked || clockLocked) {
                     FilledAction("Unlock", onClick = onOpenPaywall)
                 }
@@ -578,7 +614,10 @@ private fun WidgetCard(
                                         apply { it.copy(clockStyleOverride = style.id) }
                                     }
                                 },
-                                onPreview = { onPreviewClock(style.id) },
+                                onPreview = {
+                                    onPreviewClock(style.id)
+                                    jumpToPreview()
+                                },
                             )
                         }
                         if (pair.size == 1) Spacer(Modifier.weight(1f))
@@ -594,40 +633,14 @@ private fun WidgetCard(
                 modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
             )
 
-            // Per-widget cards get a "match the app" option; the shared card doesn't need one.
-            if (appWidgetId != null) {
-                val matching = settings.themeIdOverride.isEmpty()
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (matching) BitsColors.Amber.copy(alpha = 0.16f) else BitsColors.PanelBase)
-                        .clickable {
-                            themePreview = null
-                            apply { it.copy(themeIdOverride = "") }
-                        }
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Match the app",
-                        style = BitsText.Small.copy(color = if (matching) BitsColors.Amber else BitsColors.Ink),
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (matching) {
-                        Icon(Icons.Filled.Check, contentDescription = null, tint = BitsColors.Amber, modifier = Modifier.size(14.dp))
-                    }
-                }
-            }
-
             WidgetThemes.all.chunked(2).forEach { pair ->
                 Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     pair.forEach { theme ->
                         val usable = state.canUseTheme(theme.id)
+                        // A board with no override follows the app theme, so that theme
+                        // simply shows as the selected one rather than a separate option.
                         val activeId = if (appWidgetId == null) state.activeTheme.id else state.themeFor(settings).id
-                        val isMatching = appWidgetId != null && settings.themeIdOverride.isEmpty()
-                        val selected = activeId == theme.id && themePreview == null && !isMatching
+                        val selected = activeId == theme.id && themePreview == null
                         ThemeTile(
                             theme = theme,
                             usable = usable,
@@ -642,21 +655,15 @@ private fun WidgetCard(
                                     else apply { it.copy(themeIdOverride = theme.id) }
                                 }
                             },
-                            onPreview = { themePreview = theme.id },
+                            onPreview = {
+                                themePreview = theme.id
+                                jumpToPreview()
+                            },
                         )
                     }
                     if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
-
-            OpacitySlider(
-                label = "Background opacity",
-                value = opacity,
-                onValueChange = { value ->
-                    opacity = value
-                    apply { it.copy(opacity = value) }
-                },
-            )
 
             if (appWidgetId != null && state.hasOwnBoard(appWidgetId)) {
                 TextAction("Reset this widget to main settings", BitsColors.Muted) {
