@@ -61,6 +61,7 @@ import com.bits.app.data.WidgetSettings
 import com.bits.app.data.BitsState
 import com.bits.app.data.ClockStyle
 import com.bits.app.data.ClockStyles
+import com.bits.app.data.WidgetTheme
 import com.bits.app.data.WidgetThemes
 import com.bits.app.data.addCategory
 import com.bits.app.data.editBoard
@@ -473,8 +474,10 @@ private fun WidgetCard(
                     onPreviewClock(null)
                 }
                 // Written out plainly: the chained elvis form confused type inference.
-                val themeLocked = themePreview != null && !state.canUseTheme(themePreview)
-                val clockLocked = clockPreview != null && !state.canUseClockStyle(clockPreview)
+                val themePreviewSnapshot = themePreview
+                val clockPreviewSnapshot = clockPreview
+                val themeLocked = themePreviewSnapshot != null && !state.canUseTheme(themePreviewSnapshot)
+                val clockLocked = clockPreviewSnapshot != null && !state.canUseClockStyle(clockPreviewSnapshot)
                 if (themeLocked || clockLocked) {
                     FilledAction("Unlock", onClick = onOpenPaywall)
                 }
