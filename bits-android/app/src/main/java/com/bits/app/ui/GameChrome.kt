@@ -99,11 +99,12 @@ fun PixelButton(
 /** A blocky retro direction pad. Sits alongside swiping rather than replacing it. */
 @Composable
 fun PixelDpad(onMove: (Direction) -> Unit, modifier: Modifier = Modifier) {
+    // Deliberately large: easy to hit without looking down mid-game.
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         DpadKey("\u25B2", "Up") { onMove(Direction.UP) }
         Row {
             DpadKey("\u25C0", "Left") { onMove(Direction.LEFT) }
-            Spacer(Modifier.width(52.dp))
+            Spacer(Modifier.width(76.dp))
             DpadKey("\u25B6", "Right") { onMove(Direction.RIGHT) }
         }
         DpadKey("\u25BC", "Down") { onMove(Direction.DOWN) }
@@ -112,7 +113,7 @@ fun PixelDpad(onMove: (Direction) -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 private fun DpadKey(glyph: String, description: String, onClick: () -> Unit) {
-    Box(Modifier.size(52.dp)) {
+    Box(Modifier.size(76.dp)) {
         // Offset block behind each key, for the moulded-plastic arcade look.
         Box(
             Modifier
@@ -132,7 +133,7 @@ private fun DpadKey(glyph: String, description: String, onClick: () -> Unit) {
         ) {
             Text(
                 text = glyph,
-                style = BitsText.PixelBody.copy(color = BitsColors.Ink),
+                style = BitsText.PixelHeading.copy(color = BitsColors.Ink),
                 modifier = Modifier.semantics { contentDescription = description },
             )
         }

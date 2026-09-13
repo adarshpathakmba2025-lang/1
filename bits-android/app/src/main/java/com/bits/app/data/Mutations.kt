@@ -177,14 +177,17 @@ fun BitsState.startWordleDay(dayIndex: Long, brokeStreak: Boolean): BitsState =
         )
     )
 
-/** Records a guess. Solving the day's puzzle also earns one hint point. */
+/**
+ * Records a guess. Every completed row earns one hint point, so play itself funds the
+ * hints rather than only a win doing so.
+ */
 fun BitsState.withWordleGuess(dayIndex: Long, guess: String, solved: Boolean): BitsState =
     copy(
         preferences = preferences.copy(
             wordleDay = dayIndex,
             wordleGuesses = preferences.wordleGuesses + guess,
             wordleStreak = if (solved) preferences.wordleStreak + 1 else preferences.wordleStreak,
-            hintPoints = if (solved) preferences.hintPoints + 1 else preferences.hintPoints,
+            hintPoints = preferences.hintPoints + 1,
         )
     )
 

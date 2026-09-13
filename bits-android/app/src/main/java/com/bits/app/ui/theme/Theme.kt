@@ -69,6 +69,12 @@ object BitsText {
     // Games section. Press Start 2P is wide and tall, so sizes run small and lines run loose.
     val PixelTitle = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 17.sp, lineHeight = 26.sp, color = BitsColors.Ink)
     val PixelHeading = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 12.sp, lineHeight = 20.sp, color = BitsColors.Ink)
+    /** Big serif-free letters for the word grid, matching the reference layout. */
+    /** Emoji faces in Memory Match, sized to be readable without squinting. */
+    val MemoryGlyph = TextStyle(fontFamily = FontFamily.SansSerif, fontSize = 34.sp, lineHeight = 40.sp, color = BitsColors.Ink)
+    val WordCell = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Medium, fontSize = 30.sp, lineHeight = 34.sp, color = BitsColors.Ink)
+    /** Small enough that DEL and GO fit their keys without shrinking the letter keys. */
+    val KeyCap = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 9.sp, lineHeight = 14.sp, color = BitsColors.Ink)
     val PixelCaption = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 7.sp, lineHeight = 13.sp, color = BitsColors.Muted)
     val PixelBody = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 9.sp, lineHeight = 17.sp, color = BitsColors.Muted)
     val PixelScore = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 11.sp, lineHeight = 18.sp, color = BitsColors.Amber)

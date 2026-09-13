@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -412,11 +414,13 @@ private fun MemoryTile(card: MemoryCard, deck: MemoryDeck, modifier: Modifier, o
             deck == MemoryDeck.SHAPES -> PixelShape(index = card.symbol, colour = colour.copy(alpha = alpha))
             deck == MemoryDeck.CODES -> Text(
                 glyph.orEmpty(),
-                style = BitsText.PixelBody.copy(color = colour.copy(alpha = alpha)),
+                style = BitsText.PixelHeading.copy(color = colour.copy(alpha = alpha)),
             )
+            // Emoji decks get their own larger size; the pixel font sizes are too small
+            // for these to read at a glance.
             glyph != null -> Text(
                 glyph,
-                style = BitsText.PixelHeading.copy(color = Color.White.copy(alpha = alpha)),
+                style = BitsText.MemoryGlyph.copy(color = Color.White.copy(alpha = alpha)),
             )
             else -> PixelShape(index = card.symbol, colour = colour.copy(alpha = alpha))
         }
@@ -615,21 +619,18 @@ fun WordleScreen(
     var message by remember(dayIndex) { mutableStateOf<String?>(null) }
     var shake by remember(dayIndex) { mutableIntStateOf(0) }
     var celebrate by remember { mutableStateOf(false) }
-    var showHelp by remember { mutableStateOf(true) }
+    // Full-screen and unmissable on arrival; reopened later from the button in the header.
+    var showHelp by remember(dayIndex) { mutableStateOf(guesses.isEmpty()) }
     var pickingReveal by remember { mutableStateOf(false) }
 
     val solved = guesses.lastOrNull() == answer
-    val out = guesses.size >= Wordle.MAX_GUESSES && !solved
-    val finished = solved || out
-    // Recomputed as letters are bought, so typing always targets the right slots.
     val slots = Wordle.editableIndices(puzzle, purchased)
     val shown = Wordle.shownIndices(puzzle, purchased)
 
-    // A bought letter shrinks the typing area, so trim anything now too long.
     LaunchedEffect(slots.size) { if (typed.length > slots.size) typed = typed.take(slots.size) }
 
     fun submit() {
-        if (finished || !Wordle.isComplete(typed, puzzle, purchased)) return
+        if (solved || !Wordle.isComplete(typed, puzzle, purchased)) return
         val guess = Wordle.assembleGuess(typed, puzzle, purchased)
         if (!Wordle.isAcceptable(guess)) {
             message = "Not in word list"
@@ -644,176 +645,205 @@ fun WordleScreen(
         onGuess(guess, won)
     }
 
-    Box {
-        GameFrame(
-            title = "Word Guess",
-            score = streak,
-            best = best,
-            onBack = onBack,
-            footer = {
-                Column(Modifier.fillMaxWidth()) {
-                    when {
-                        solved -> Text("SOLVED IN ${guesses.size} \u00b7 +1 HINT POINT", style = BitsText.PixelBody.copy(color = Arcade.Glow))
-                        out -> Text("IT WAS $answer \u00b7 NEW WORD TOMORROW", style = BitsText.PixelBody.copy(color = BitsColors.Danger))
-                        pickingReveal -> Text("TAP A BOX TO REVEAL IT", style = BitsText.PixelBody.copy(color = Arcade.Glow))
-                        else -> Text(message?.uppercase() ?: "SOME LETTERS COME FREE", style = BitsText.PixelBody)
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().background(Arcade.Screen)) {
+            ArcadeHeader(
+                title = "Word Guess",
+                onBack = onBack,
+                trailing = {
+                    Text(
+                        text = "INSTRUCTIONS",
+                        style = BitsText.PixelBody.copy(color = Arcade.Glow),
+                        modifier = Modifier
+                            .background(Arcade.Border)
+                            .padding(1.dp)
+                            .background(Arcade.Panel)
+                            .clickable { showHelp = true }
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                    )
+                },
+            )
+            ScoreBar(score = streak, best = best, modifier = Modifier.padding(horizontal = 14.dp))
+
+            HintBar(
+                points = hintPoints,
+                canPeek = !solved && hintPoints >= Wordle.PEEK_COST,
+                canReveal = !solved && hintPoints >= Wordle.REVEAL_COST &&
+                    Wordle.revealableIndices(puzzle, purchased).isNotEmpty(),
+                picking = pickingReveal,
+                onPeek = {
+                    val letter = Wordle.peekLetter(puzzle, guesses, purchased)
+                    if (letter == null) message = "Nothing left to hint"
+                    else {
+                        onPeek()
+                        message = "$letter is in the word"
                     }
-                }
-            },
-        ) {
-            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (showHelp) {
-                    HowToPlayBox(onDismiss = { showHelp = false })
-                }
+                },
+                onStartReveal = { pickingReveal = !pickingReveal },
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            )
 
-                HintBar(
-                    points = hintPoints,
-                    canPeek = !finished && hintPoints >= Wordle.PEEK_COST,
-                    canReveal = !finished && hintPoints >= Wordle.REVEAL_COST &&
-                        Wordle.revealableIndices(puzzle, purchased).isNotEmpty(),
-                    picking = pickingReveal,
-                    onPeek = {
-                        val letter = Wordle.peekLetter(puzzle, guesses, purchased)
-                        if (letter == null) {
-                            message = "Nothing left to hint"
-                        } else {
-                            onPeek()
-                            message = "$letter is in the word"
-                        }
-                    },
-                    onStartReveal = { pickingReveal = !pickingReveal },
-                )
+            // The board grows as guesses are made, so it scrolls rather than being capped.
+            val rowCount = maxOf(Wordle.ROWS_SHOWN_MIN, guesses.size + if (solved) 0 else 1)
+            val boardScroll = rememberScrollState()
+            LaunchedEffect(guesses.size) { boardScroll.animateScrollTo(boardScroll.maxValue) }
 
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    for (rowIndex in 0 until Wordle.MAX_GUESSES) {
-                        val guess = guesses.getOrNull(rowIndex)
-                        val isCurrent = rowIndex == guesses.size && !finished
-                        val marks = guess?.let { Wordle.mark(it, answer) }
-                        val nudge by animateFloatAsState(
-                            targetValue = shake.toFloat(),
-                            animationSpec = tween(90),
-                            label = "shake",
-                        )
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .offset(x = if (isCurrent) (sin(nudge * 12f) * 5f).dp else 0.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            for (i in 0 until Wordle.LENGTH) {
-                                val isShown = i in shown
-                                val isBought = i in purchased
-                                val slotIndex = slots.indexOf(i)
-                                val letter = when {
-                                    guess != null -> guess[i].toString()
-                                    isShown -> answer[i].toString()
-                                    isCurrent && slotIndex in typed.indices -> typed[slotIndex].toString()
-                                    else -> ""
-                                }
-                                val fill = when (marks?.getOrNull(i)) {
-                                    LetterMark.CORRECT -> Color(0xFF7FD68A)
-                                    LetterMark.PRESENT -> Arcade.Glow
-                                    LetterMark.ABSENT -> Color(0xFF39434F)
-                                    null -> if (isShown) Color(0xFF24323F) else Arcade.Panel
-                                }
-                                val pop by animateFloatAsState(
-                                    targetValue = if (marks?.getOrNull(i) == LetterMark.CORRECT) 1f else 0f,
-                                    animationSpec = tween(260, delayMillis = i * 70),
-                                    label = "pop",
-                                )
-                                val revealTarget = pickingReveal && rowIndex == guesses.size && !isShown
-                                Box(
-                                    Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f)
-                                        .scale(1f + pop * 0.07f)
-                                        .background(
-                                            when {
-                                                revealTarget -> Color(0xFF7FD68A)
-                                                isShown && guess == null -> Arcade.Glow
-                                                else -> Arcade.Border
-                                            }
-                                        )
-                                        .padding(2.dp)
-                                        .background(fill)
-                                        .then(
-                                            if (revealTarget) Modifier.clickable {
-                                                onBuyReveal(i)
-                                                pickingReveal = false
-                                                message = null
-                                            } else Modifier
-                                        ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        letter,
-                                        style = BitsText.PixelHeading.copy(
-                                            color = when {
-                                                marks != null -> Arcade.Screen
-                                                isBought -> Color(0xFF7FD68A)
-                                                isShown -> Arcade.Glow
-                                                else -> BitsColors.Ink
-                                            },
-                                        ),
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp)
+                    .verticalScroll(boardScroll),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                for (rowIndex in 0 until rowCount) {
+                    val guess = guesses.getOrNull(rowIndex)
+                    val isCurrent = rowIndex == guesses.size && !solved
+                    val marks = guess?.let { Wordle.mark(it, answer) }
+                    val nudge by animateFloatAsState(
+                        targetValue = shake.toFloat(),
+                        animationSpec = tween(90),
+                        label = "shake",
+                    )
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .offset(x = if (isCurrent) (sin(nudge * 12f) * 5f).dp else 0.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        for (i in 0 until Wordle.LENGTH) {
+                            val isShown = i in shown
+                            val isBought = i in purchased
+                            val slotIndex = slots.indexOf(i)
+                            // Free and bought letters show on every not-yet-played row.
+                            val letter = when {
+                                guess != null -> guess[i].toString()
+                                isShown -> answer[i].toString()
+                                isCurrent && slotIndex in typed.indices -> typed[slotIndex].toString()
+                                else -> ""
+                            }
+                            val fill = when (marks?.getOrNull(i)) {
+                                LetterMark.CORRECT -> Color(0xFF7FD68A)
+                                LetterMark.PRESENT -> Arcade.Glow
+                                LetterMark.ABSENT -> Color(0xFF2B333C)
+                                null -> Color(0xFF121A22)
+                            }
+                            val revealTarget = pickingReveal && rowIndex == guesses.size && !isShown
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f)
+                                    .background(
+                                        when {
+                                            revealTarget -> Color(0xFF7FD68A)
+                                            else -> Color(0xFF2A3A46)
+                                        }
                                     )
-                                }
+                                    .padding(2.dp)
+                                    .background(fill)
+                                    .then(
+                                        if (revealTarget) Modifier.clickable {
+                                            onBuyReveal(i)
+                                            pickingReveal = false
+                                            message = null
+                                        } else Modifier
+                                    ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = letter,
+                                    style = BitsText.WordCell.copy(
+                                        color = when {
+                                            marks != null -> Arcade.Screen
+                                            isBought -> Color(0xFF7FD68A)
+                                            else -> BitsColors.Ink
+                                        },
+                                    ),
+                                )
                             }
                         }
                     }
                 }
+                Spacer(Modifier.height(6.dp))
+            }
 
-                Spacer(Modifier.weight(1f))
+            Text(
+                text = when {
+                    solved -> "SOLVED IN ${guesses.size} ${if (guesses.size == 1) "TRY" else "TRIES"}"
+                    pickingReveal -> "TAP A BOX TO REVEAL IT"
+                    else -> message?.uppercase() ?: "+1 HINT POINT PER ROW"
+                },
+                style = BitsText.PixelBody.copy(
+                    color = if (solved) Arcade.Glow else BitsColors.Muted,
+                ),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            )
 
-                if (!finished) {
-                    LetterKeyboard(
-                        guesses = guesses,
-                        answer = answer,
-                        onLetter = { if (typed.length < slots.size) typed += it },
-                        onDelete = { typed = typed.dropLast(1) },
-                        onEnter = ::submit,
-                    )
-                } else {
-                    Text(
-                        text = "COME BACK TOMORROW FOR A NEW PUZZLE",
-                        style = BitsText.PixelBody.copy(color = BitsColors.Muted),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
-                    )
-                }
+            if (!solved) {
+                LetterKeyboard(
+                    guesses = guesses,
+                    answer = answer,
+                    onLetter = { if (typed.length < slots.size) typed += it },
+                    onDelete = { typed = typed.dropLast(1) },
+                    onEnter = ::submit,
+                    modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 14.dp),
+                )
+            } else {
+                Text(
+                    text = "COME BACK TOMORROW FOR A NEW WORD",
+                    style = BitsText.PixelBody.copy(color = BitsColors.Muted),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+                )
             }
         }
 
         if (celebrate) {
             ConfettiBurst(onFinished = { celebrate = false })
         }
+
+        if (showHelp) {
+            WordleInstructions(onDismiss = { showHelp = false })
+        }
     }
 }
 
-/** The one-off instruction panel, in the same arcade frame as everything else here. */
+/** Covers the whole screen on arrival, so the rules can't be scrolled past or missed. */
 @Composable
-private fun HowToPlayBox(onDismiss: () -> Unit) {
-    Row(
+private fun WordleInstructions(onDismiss: () -> Unit) {
+    Column(
         Modifier
-            .fillMaxWidth()
-            .background(Arcade.Border)
-            .padding(2.dp)
-            .background(Arcade.Panel)
-            .padding(12.dp),
-        verticalAlignment = Alignment.Top,
+            .fillMaxSize()
+            .background(Arcade.Screen)
+            .padding(22.dp),
     ) {
-        Column(Modifier.weight(1f)) {
-            Text("ONE WORD A DAY", style = BitsText.PixelBody.copy(color = Arcade.Glow))
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "Guess the word in six tries. A letter or two comes free. Solve it to earn a hint point.",
-                style = BitsText.PixelBody.copy(color = BitsColors.Muted),
-            )
-        }
-        Text(
-            "X",
-            style = BitsText.PixelBody.copy(color = BitsColors.Muted),
-            modifier = Modifier.clickable(onClick = onDismiss).padding(6.dp),
+        Spacer(Modifier.height(8.dp))
+        Text("HOW TO PLAY", style = BitsText.PixelTitle.copy(color = Arcade.Glow))
+        Box(Modifier.padding(top = 14.dp, bottom = 20.dp).fillMaxWidth().height(3.dp).background(Arcade.Border))
+
+        val rules = listOf(
+            "ONE WORD A DAY" to "Everyone gets the same five-letter word. A new one lands at midnight.",
+            "NO TRY LIMIT" to "Keep guessing until you get it. At the end you'll see how many tries it took.",
+            "FREE LETTERS" to "A letter or two is filled in for you. Those boxes can't be typed over.",
+            "EARN HINTS" to "Every completed row earns one hint point.",
+            "SPEND HINTS" to "1 point tells you a letter that's in the word. 5 points reveals a whole box you choose.",
+            "COLOURS" to "Green means right letter, right spot. Amber means right letter, wrong spot.",
         )
+        rules.forEach { (title, body) ->
+            Column(Modifier.padding(bottom = 16.dp)) {
+                Text(title, style = BitsText.PixelBody.copy(color = BitsColors.Ink))
+                Spacer(Modifier.height(6.dp))
+                Text(body, style = BitsText.PixelBody.copy(color = BitsColors.Muted))
+            }
+        }
+
+        Spacer(Modifier.weight(1f))
+        PixelButton(
+            label = "Let's play",
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            onClick = onDismiss,
+        )
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -826,8 +856,9 @@ private fun HintBar(
     picking: Boolean,
     onPeek: () -> Unit,
     onStartReveal: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             "HINTS $points",
             style = BitsText.PixelBody.copy(color = if (points > 0) Arcade.Glow else BitsColors.Muted),
@@ -864,6 +895,7 @@ private fun LetterKeyboard(
     onLetter: (Char) -> Unit,
     onDelete: () -> Unit,
     onEnter: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     // Best-known state per letter, so the keyboard reflects what's been learned.
     val states = mutableMapOf<Char, LetterMark>()
@@ -878,36 +910,34 @@ private fun LetterKeyboard(
         }
     }
 
+    fun fillFor(letter: Char): Color = when (states[letter]) {
+        LetterMark.CORRECT -> Color(0xFF7FD68A)
+        LetterMark.PRESENT -> Arcade.Glow
+        LetterMark.ABSENT -> Color(0xFF232C36)
+        null -> Arcade.Panel
+    }
+    fun inkFor(letter: Char): Color =
+        if (states[letter] == LetterMark.CORRECT || states[letter] == LetterMark.PRESENT)
+            Arcade.Screen else BitsColors.Ink
+
+    // Ten key-widths per row on every row, so no row ends up with fatter keys than another.
     val rows = listOf("QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM")
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        rows.forEachIndexed { index, row ->
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                if (index == 2) {
-                    KeyCap("DEL", Modifier.weight(1.6f), onClick = onDelete)
-                }
-                row.forEach { letter ->
-                    val fill = when (states[letter]) {
-                        LetterMark.CORRECT -> Color(0xFF7FD68A)
-                        LetterMark.PRESENT -> Arcade.Glow
-                        LetterMark.ABSENT -> Color(0xFF232C36)
-                        null -> Arcade.Panel
-                    }
-                    KeyCap(
-                        label = letter.toString(),
-                        modifier = Modifier.weight(1f),
-                        fill = fill,
-                        ink = if (states[letter] == LetterMark.CORRECT || states[letter] == LetterMark.PRESENT)
-                            Arcade.Screen else BitsColors.Ink,
-                        onClick = { onLetter(letter) },
-                    )
-                }
-                if (index == 2) {
-                    KeyCap("GO", Modifier.weight(1.6f), fill = Arcade.Glow, ink = Arcade.Screen, onClick = onEnter)
-                }
-            }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // Row 1: ten letters.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            rows[0].forEach { KeyCap(it.toString(), Modifier.weight(1f), fillFor(it), inkFor(it)) { onLetter(it) } }
+        }
+        // Row 2: nine letters, half a key of padding each side to keep it centred.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Spacer(Modifier.weight(0.5f))
+            rows[1].forEach { KeyCap(it.toString(), Modifier.weight(1f), fillFor(it), inkFor(it)) { onLetter(it) } }
+            Spacer(Modifier.weight(0.5f))
+        }
+        // Row 3: DEL + seven letters + GO, the two wide keys totalling three key-widths.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            KeyCap("DEL", Modifier.weight(1.5f), Arcade.Panel, BitsColors.Muted, onClick = onDelete)
+            rows[2].forEach { KeyCap(it.toString(), Modifier.weight(1f), fillFor(it), inkFor(it)) { onLetter(it) } }
+            KeyCap("GO", Modifier.weight(1.5f), Arcade.Glow, Arcade.Screen, onClick = onEnter)
         }
     }
 }
@@ -922,12 +952,13 @@ private fun KeyCap(
 ) {
     Box(
         modifier
-            .height(42.dp)
+            // A fixed height on every key means rows can never differ in size.
+            .height(46.dp)
             .background(fill)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, style = BitsText.PixelBody.copy(color = ink))
+        Text(label, style = BitsText.KeyCap.copy(color = ink), maxLines = 1)
     }
 }
 

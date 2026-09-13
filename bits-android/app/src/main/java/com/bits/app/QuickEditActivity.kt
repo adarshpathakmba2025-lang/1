@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -42,7 +45,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.addItem
 import com.bits.app.data.deleteItem
@@ -166,7 +168,11 @@ private fun QuickAddCard(categoryId: String, repository: BitsRepository, onDone:
             value = value,
             onValueChange = { value = it },
             onSubmit = save,
-            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 220.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(top = 10.dp),
         )
         Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(BitsColors.Amber))
         Row(Modifier.padding(top = 4.dp)) {
@@ -195,49 +201,15 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
         return
     }
 
+    // The item can vanish while the card is open, e.g. after a delete. Just close
+    // quietly rather than showing a dead-end message.
     if (item == null) {
-        CardShell(onDismiss = onDone) {
-            Text("This item isn't there anymore.", style = BitsText.Body)
-            Row(Modifier.padding(top = 6.dp)) {
-                Spacer(Modifier.weight(1f))
-                TextAction("Close", BitsColors.Amber, onDone)
-            }
-        }
+        LaunchedEffect(Unit) { onDone() }
         return
     }
 
     var value by remember(item.id) { mutableStateOf(TextFieldValue(item.text, TextRange(item.text.length))) }
     var settled by remember(item.id) { mutableStateOf(false) }
-    // After deleting, the card stays up for a moment purely to offer Undo. The app's own
-    // undo bar can't help here, because the widget never opens the app.
-    var deletedText by remember(item.id) { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(deletedText) {
-        if (deletedText != null) {
-            delay(4500)
-            onDone()
-        }
-    }
-
-    val pendingDelete = deletedText
-    if (pendingDelete != null) {
-        CardShell(onDismiss = onDone) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Deleted \u201C${pendingDelete.take(28)}\u201D",
-                    style = BitsText.Small.copy(color = BitsColors.Ink),
-                    maxLines = 1,
-                    modifier = Modifier.weight(1f),
-                )
-                TextAction("Undo", BitsColors.Amber) {
-                    repository.undoDelete()
-                    onDone()
-                }
-            }
-        }
-        return
-    }
-
     val save: () -> Unit = {
         if (!settled) {
             settled = true
@@ -256,11 +228,17 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
                 onToggle = { repository.edit { it.toggleItem(item.id) } },
                 label = if (item.done) "Reopen ${item.text}" else "Complete ${item.text}",
             )
+            // Capped and scrollable, so a very long note can't push the buttons
+            // off the bottom of the screen.
             EditorField(
                 value = value,
                 onValueChange = { value = it },
                 onSubmit = save,
-                modifier = Modifier.weight(1f).padding(top = 9.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(max = 220.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 9.dp),
             )
         }
         Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(BitsColors.Amber))
@@ -269,7 +247,7 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
             ArmedDelete {
                 settled = true
                 repository.deleteItemWithUndo(item.id)
-                deletedText = item.text
+                onDone()
             }
             Spacer(Modifier.weight(1f))
             TextAction("Save", BitsColors.Ink) { save() }

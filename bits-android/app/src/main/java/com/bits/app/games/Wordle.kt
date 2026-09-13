@@ -12,7 +12,12 @@ data class WordPuzzle(val dayIndex: Long, val answer: String, val revealed: Set<
 
 object Wordle {
     const val LENGTH = 5
-    const val MAX_GUESSES = 6
+
+    /**
+     * There is no try limit: the player keeps going until the word falls. The count of
+     * guesses is reported at the end instead of being used to cut them off.
+     */
+    const val ROWS_SHOWN_MIN = 6
 
     /**
      * How many letters come free. Mostly one, sometimes two, which keeps the difficulty

@@ -1,57 +1,44 @@
 # Bits
 
-Your external brain, living on your home screen. Android prototype v0.7.
+Your external brain, living on your home screen. Android prototype v0.8.
 
 ## Updating
 
 1. Upload these files to your repo, replacing the old ones. Commit.
-2. **Actions** -> green tick -> download **bits-apk** -> install over v0.6.
-3. Remove and re-add the widget. The **app icon** has changed, so a reboot or launcher
-   restart may be needed before the new one appears.
+2. **Actions** -> green tick -> download **bits-apk** -> install over v0.7.
+3. Remove and re-add the widget.
 
-Settings -> About -> Version should read **0.7.0**.
+Settings -> About -> Version should read **0.8.0**.
 
-## New in v0.7
+## New in v0.8
 
-**New logo** - a cream tile with a navy pixel checklist and an amber tick on the completed
-row. Chosen over the darker and bolder options because it was the only one that kept its
-structure at real launcher size (48px), where dim rows on dark tiles turn to mush.
-
-**Delete** - the armed state now reads **Confirm?**. Deleting from the widget keeps the
-floating card open for a few seconds to offer **Undo**, since the app's own undo bar can
-never be seen when the action came from the widget.
-
-**Second and later widgets** - each now has a full **Customise** panel: its own
-categories, its own clock style and theme, its own opacity, and a field to create a brand
-new category that appears on that widget only.
+**Settings** - the two duplicate widget sections are gone. Everything now lives under
+**Widget lists**, using the richer swatch tiles from the old theme card. Free users see one
+card that drives all their widgets; Pro users get one card per widget, each with its own
+categories, clock, theme and opacity, plus a "Match the app" option.
 
 **Word Guess**
-- **309 words**, deduplicated.
-- Free letters are now properly scattered: position varies day to day, and the count is
-  usually one, sometimes two, so it never settles into a pattern.
-- **Hint points.** Solve the daily puzzle to earn one. They accumulate.
-  Spend **1** to be told a letter that's in the word; spend **5** to reveal a whole box of
-  your choosing. Bought letters are protected from typing exactly like free ones.
-- A short pixel-styled instruction panel on first open, dismissable.
+- **No try limit.** Keep guessing until you solve it; the end screen reports how many
+  tries it took.
+- **A hint point for every completed row**, not just for solving.
+- **Full-screen instructions** on opening, in pixel styling, impossible to miss.
+  An **INSTRUCTIONS** button in the header reopens them any time.
+- **Keyboard fixed.** Every row now spans the same ten key-widths, so the middle row is no
+  longer wider than the others, and every key is the same fixed height.
+- Bigger letter cells with thin borders, matching your reference layout.
 
-**Memory Match** - now 12 deck types: colours, numbers, letters, shapes, fruit, food,
-animals, flags, space, weather, codes (2U / 9A style pairs), and a jumbled round that
-mixes decks together. Decks are picked at random per round, and the level tag is gone.
+**Widget card** - long text is capped and scrolls, so Save/Delete/Cancel can never be
+pushed off screen. Undo and the "item isn't there anymore" message are gone from the
+widget entirely; deleting just closes the card.
 
-**Checkboxes** - squared off rather than rounded, and aligned to the first line of text so
-multi-line items stay tidy.
+**Memory Match** - emoji faces are much larger and easier to read at a glance.
 
-**Widget previews in Settings** - hand scrolling back automatically 15 seconds after being
-tapped, so the settings page never stays awkward to navigate.
-
-**Founder note** - rebuilt in the arcade styling used by the games section, with the text
-broken into short readable paragraphs.
+**Snake** - the D-pad is considerably bigger and more spread out.
 
 ## Protecting the Pro perks
 
-The easter egg is one atomic all-or-nothing claim and refuses if any slot is filled or any
-pick is a free item. Restoring a backup never grants Pro or unlocks, because entitlements
-belong to the device.
+The easter egg is one atomic all-or-nothing claim. Restoring a backup never grants Pro or
+unlocks, because entitlements belong to the device.
 
 **The honest limit:** Bits is fully offline, so all state is a file on the user's device.
 Anyone willing to root their phone or decompile the APK can change it. Only server-side or
@@ -60,6 +47,10 @@ Play Billing verification prevents that.
 ## Not live yet
 
 **Payments.** Test Pro via Settings -> Developer -> **Simulate Pro**.
+
+## The hidden thing
+
+Four taps on the "Bits" title. One theme, one game, one clock style, once per device.
 
 ## Before publishing
 
