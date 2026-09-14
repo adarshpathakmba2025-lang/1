@@ -952,7 +952,7 @@ fun WidgetPreview(
                 Image(
                     painter = painterResource(R.drawable.ic_game_controller),
                     contentDescription = null,
-                    modifier = Modifier.padding(8.dp).size(22.dp),
+                    modifier = Modifier.padding(6.dp).size(34.dp),
                 )
                 Spacer(Modifier.weight(1f))
                 Text("Bits", style = BitsText.WidgetHeading.copy(color = BitsColors.Muted), modifier = Modifier.padding(vertical = 8.dp))
@@ -960,7 +960,7 @@ fun WidgetPreview(
                     painter = painterResource(R.drawable.ic_tune),
                     contentDescription = null,
                     tint = BitsColors.Muted,
-                    modifier = Modifier.padding(8.dp).size(22.dp),
+                    modifier = Modifier.padding(6.dp).size(34.dp),
                 )
             }
         }

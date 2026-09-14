@@ -24,11 +24,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.bits.app.games.Direction
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import com.bits.app.R
 import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
 
@@ -214,12 +212,10 @@ private fun ScoreChip(
         )
         if (onReset != null) {
             Spacer(Modifier.height(8.dp))
-            Image(
-                painter = painterResource(R.drawable.ic_refresh_pixel),
-                contentDescription = "Reset best",
-                modifier = Modifier
-                    .size(22.dp)
-                    .clickable(onClick = onReset),
+            Text(
+                text = "Refresh",
+                style = BitsText.PixelCaption.copy(color = accent, textDecoration = TextDecoration.Underline),
+                modifier = Modifier.clickable(onClick = onReset),
             )
         }
     }
