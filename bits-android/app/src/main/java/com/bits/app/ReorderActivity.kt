@@ -111,7 +111,9 @@ private fun ReorderSheet(appWidgetId: Int, repository: BitsRepository, onDone: (
         val reorderState = rememberReorderableLazyListState(listState) { from, to ->
             val fromIndex = rows.indexOfFirst { rowKey(it) == from.key }
             val toIndex = rows.indexOfFirst { rowKey(it) == to.key }
-            if (fromIndex >= 0 && toIndex >= 0) {
+            // Index 0 is always the first heading. A bit dropped above it would belong to
+            // no category at all, so that slot is refused and the drag simply stops there.
+            if (fromIndex >= 0 && toIndex >= 1) {
                 rows = rows.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
             }
         }

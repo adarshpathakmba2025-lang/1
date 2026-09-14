@@ -58,7 +58,9 @@ fun BitsCheckbox(checked: Boolean, onToggle: () -> Unit, label: String) {
         // Sits against the first line of text, so multi-line items stay tidy.
         contentAlignment = Alignment.TopCenter,
     ) {
-        Box(Modifier.padding(top = 10.dp)) {
+        // Tuned to line up with the middle of the first line of body text rather than
+        // riding above it.
+        Box(Modifier.padding(top = 13.dp)) {
             CheckVisual(checked = checked, size = 16.dp)
         }
     }

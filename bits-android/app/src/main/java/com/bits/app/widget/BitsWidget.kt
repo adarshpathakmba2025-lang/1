@@ -114,22 +114,6 @@ private fun WidgetBody(context: Context, state: BitsState, appWidgetId: Int) {
             // item text is never drawn underneath it.
             .padding(start = 16.dp, end = 6.dp, top = 14.dp, bottom = 4.dp)
     ) {
-        // Reorder sits top-right, above the list, so it reads as a list control.
-        Row(
-            modifier = GlanceModifier.fillMaxWidth().padding(end = 4.dp, bottom = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Spacer(modifier = GlanceModifier.defaultWeight())
-            Image(
-                provider = ImageProvider(R.drawable.ic_reorder_pixel),
-                contentDescription = "Reorder your bits",
-                modifier = GlanceModifier
-                    .size(38.dp)
-                    .padding(9.dp)
-                    .clickable(actionStartActivity(Launch.reorder(context, appWidgetId))),
-            )
-        }
-
         if (settings.showClock) {
             val (layout, heightDp) = clockLayout(state.clockStyleFor(settings).id)
             AndroidRemoteViews(
@@ -165,6 +149,16 @@ private fun WidgetBody(context: Context, state: BitsState, appWidgetId: Int) {
                     .size(44.dp)
                     .padding(8.dp)
                     .clickable(actionStartActivity(Launch.games(context))),
+            )
+            // Reorder lives beside the games button, so the top of the widget stays
+            // entirely given over to the lists.
+            Image(
+                provider = ImageProvider(R.drawable.ic_reorder_pixel),
+                contentDescription = "Reorder your bits",
+                modifier = GlanceModifier
+                    .size(44.dp)
+                    .padding(9.dp)
+                    .clickable(actionStartActivity(Launch.reorder(context, appWidgetId))),
             )
             Spacer(modifier = GlanceModifier.defaultWeight())
             Text(
@@ -210,6 +204,8 @@ private fun EntryLine(context: Context, item: Item, ink: Color, done: Color, app
             provider = ImageProvider(if (item.done) R.drawable.ic_check_on else R.drawable.ic_check_off),
             contentDescription = if (item.done) "Mark not done" else "Mark done",
             modifier = GlanceModifier
+                // Nudged down so the box sits on the text baseline rather than above it.
+                .padding(top = 3.dp)
                 .size(width = 22.dp, height = 17.dp)
                 .clickable(
                     actionRunCallback<ToggleItemAction>(

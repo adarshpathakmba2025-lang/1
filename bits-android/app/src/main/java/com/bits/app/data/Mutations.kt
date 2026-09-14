@@ -173,6 +173,12 @@ fun BitsState.widgetRows(settings: WidgetSettings): List<WidgetRow> =
  * categories and other widgets untouched.
  */
 fun BitsState.applyWidgetRows(rows: List<WidgetRow>): BitsState {
+    // A bit ahead of every heading has no category to belong to. The UI already refuses
+    // that drop; refusing it here too means no arrangement can ever strand a bit.
+    val firstHeader = rows.indexOfFirst { it is WidgetRow.Header }
+    if (firstHeader < 0) return this
+    if (rows.take(firstHeader).any { it is WidgetRow.Entry }) return this
+
     val assignment = mutableMapOf<String, Pair<String, Int>>()
     var currentCategory: String? = null
     var index = 0

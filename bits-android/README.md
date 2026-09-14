@@ -1,14 +1,24 @@
 # Bits
 
-Your external brain, living on your home screen. Android v1.1.
+Your external brain, living on your home screen. Android v1.1.1.
 
 ## Updating
 
 1. Upload these files to your repo, replacing the old ones. Commit.
-2. **Actions** -> green tick -> download **bits-apk** -> install over v1.0.
+2. **Actions** -> green tick -> download **bits-apk** -> install over v1.1.
 3. Remove and re-add the widget so it picks up the new reorder button.
 
-Settings -> About -> Version should read **1.1.0**.
+Settings -> About -> Version should read **1.1.1**.
+
+## New in v1.1.1
+
+- The **reorder button moved to the widget footer**, beside the games controller, so the
+  top of the widget is given back entirely to your lists.
+- **Checkboxes nudged down** in both the app and the widget, so they sit on the line of
+  the text rather than above it.
+- **A bit can no longer be dragged above the first category.** The drop is refused in the
+  sheet, and the data layer refuses any arrangement that would leave a bit ahead of every
+  heading, so nothing can ever be stranded without a category.
 
 ## New in v1.1
 
@@ -47,7 +57,7 @@ workaround, and it opens over the home screen without ever showing the full app.
 ## Project layout
 
 - `data/` model, midnight move, storage, backups, themes, clocks, boards, hints, ordering
-- `games/` pure game rules, unit-tested (379 checks pass)
+- `games/` pure game rules, unit-tested (383 checks pass)
 - `widget/` the home screen widget (Jetpack Glance)
 - `time/` wakes the app after midnight, on reboot, on time zone changes
 - `ui/` screens, onboarding, retro games, Pro page, tour, armed delete
