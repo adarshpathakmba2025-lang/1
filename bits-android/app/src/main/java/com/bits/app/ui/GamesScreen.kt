@@ -33,7 +33,7 @@ enum class GameId(val key: String, val title: String, val blurb: String, val ico
     Snake("snake", "Snake", "Eat, grow, don't bite yourself", R.drawable.ic_game_snake, true),
     Memory("memory", "Memory Match", "Flip cards, find the pairs", R.drawable.ic_game_memory, false),
     TicTacToe("tictactoe", "X and O", "Three in a row, if you can", R.drawable.ic_game_tictactoe, false),
-    Wordle("wordle", "Word Guess", "Five letters, six tries", R.drawable.ic_game_wordle, false),
+    Wordle("wordle", "Word Guess", "Five letters, one word a day", R.drawable.ic_game_wordle, false),
     Flappy("flappy", "Flappy", "Tap to flap, mind the pipes", R.drawable.ic_game_flappy, false),
 }
 

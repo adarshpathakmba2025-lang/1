@@ -12,8 +12,8 @@ android {
         applicationId = "com.bits.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.9.0"
+        versionCode = 11
+        versionName = "1.1.0"
     }
 
     // A fixed debug key, so each new build installs over the previous one

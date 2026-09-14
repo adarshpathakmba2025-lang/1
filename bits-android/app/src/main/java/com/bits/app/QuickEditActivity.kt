@@ -47,8 +47,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.bits.app.data.BitsState
 import com.bits.app.data.WidgetThemes
-import com.bits.app.data.canShiftItem
-import com.bits.app.data.shiftItemCategory
 import androidx.compose.ui.graphics.Color
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.addItem
@@ -77,33 +75,19 @@ class QuickEditActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val itemId = intent.getStringExtra(Launch.EXTRA_ITEM_ID)
         val categoryId = intent.getStringExtra(Launch.EXTRA_CATEGORY)
+        val appWidgetId = intent.getIntExtra(Launch.EXTRA_WIDGET_ID, -1)
         val repository = BitsRepository.get(this)
 
         setContent {
             BitsTheme {
                 if (categoryId != null) {
-                    QuickAddCard(categoryId, repository) { finish() }
+                    QuickAddCard(categoryId, appWidgetId, repository) { finish() }
                 } else {
-                    QuickEditCard(itemId, repository) { finish() }
+                    QuickEditCard(itemId, appWidgetId, repository) { finish() }
                 }
             }
         }
     }
-}
-
-/** One of the move-between-categories arrows, dimmed at the ends of the list. */
-@Composable
-private fun ShiftArrow(glyph: String, enabled: Boolean, skin: CardSkin, onClick: () -> Unit) {
-    Text(
-        text = glyph,
-        style = BitsText.Subtitle.copy(
-            color = if (enabled) skin.accent else skin.muted.copy(alpha = 0.35f),
-        ),
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-    )
 }
 
 /** The colours this card should wear, taken from whatever theme the widget is using. */
@@ -114,9 +98,18 @@ private data class CardSkin(
     val muted: Color,
 )
 
+/**
+ * The skin comes from the settings of the widget that launched this card, so two widgets
+ * with different themes never show each other's colours. It reads from live state, so a
+ * theme change applies the moment it is made.
+ */
 @Composable
-private fun skinFor(state: BitsState?): CardSkin {
-    val theme = state?.activeTheme ?: WidgetThemes.Classic
+private fun skinFor(state: BitsState?, appWidgetId: Int): CardSkin {
+    val theme = when {
+        state == null -> WidgetThemes.Classic
+        appWidgetId >= 0 -> state.themeFor(state.settingsFor(appWidgetId))
+        else -> state.activeTheme
+    }
     val ink = Color(theme.ink)
     return CardSkin(
         // Lifted a little off the widget's own tint so the card reads as a layer above it.
@@ -181,9 +174,9 @@ private fun EditorField(
 }
 
 @Composable
-private fun QuickAddCard(categoryId: String, repository: BitsRepository, onDone: () -> Unit) {
+private fun QuickAddCard(categoryId: String, appWidgetId: Int, repository: BitsRepository, onDone: () -> Unit) {
     val state by repository.state.collectAsState()
-    val skin = skinFor(state)
+    val skin = skinFor(state, appWidgetId)
     LaunchedEffect(Unit) { repository.load() }
 
     val category = state?.categories?.firstOrNull { it.id == categoryId }
@@ -231,9 +224,9 @@ private fun QuickAddCard(categoryId: String, repository: BitsRepository, onDone:
 }
 
 @Composable
-private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: () -> Unit) {
+private fun QuickEditCard(itemId: String?, appWidgetId: Int, repository: BitsRepository, onDone: () -> Unit) {
     val state by repository.state.collectAsState()
-    val skin = skinFor(state)
+    val skin = skinFor(state, appWidgetId)
     LaunchedEffect(Unit) { repository.load() }
 
     val current = state
@@ -288,23 +281,7 @@ private fun QuickEditCard(itemId: String?, repository: BitsRepository, onDone: (
             )
         }
         Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(skin.accent))
-        // Arrows move the task between categories; actions sit on the right.
         Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            val current = state
-            val canBack = current?.canShiftItem(item.id, forward = false) == true
-            val canForward = current?.canShiftItem(item.id, forward = true) == true
-            ShiftArrow("\u2039", canBack, skin) {
-                settled = true
-                save()
-                repository.edit { it.shiftItemCategory(item.id, forward = false) }
-                onDone()
-            }
-            ShiftArrow("\u203A", canForward, skin) {
-                settled = true
-                save()
-                repository.edit { it.shiftItemCategory(item.id, forward = true) }
-                onDone()
-            }
             Spacer(Modifier.weight(1f))
             TextAction("Save", skin.ink) { save() }
             ArmedDelete {

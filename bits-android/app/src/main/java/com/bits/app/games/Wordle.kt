@@ -92,21 +92,24 @@ object Wordle {
     /** Cost to be told one letter that appears somewhere in the word. */
     const val PEEK_COST = 1
 
-    /**
-     * A letter that's in the answer but which the player hasn't found yet, for the
-     * cheap hint. Returns null when there's nothing useful left to give away.
+/**
+     * The next position the cheap hint should fill in: the leftmost box the player hasn't
+     * been given and hasn't already pinned down with a correct guess. Because each hint
+     * consumes a position, repeated hints never repeat themselves.
+     *
+     * Returns null once every box is known.
      */
-    fun peekLetter(puzzle: WordPuzzle, guesses: List<String>, purchased: Set<Int>): Char? {
-        val known = buildSet {
-            puzzle.revealed.forEach { add(puzzle.answer[it]) }
-            purchased.forEach { add(puzzle.answer[it]) }
+    fun nextHintIndex(puzzle: WordPuzzle, guesses: List<String>, purchased: Set<Int>): Int? {
+        val solvedPositions = buildSet {
+            addAll(puzzle.revealed)
+            addAll(purchased)
             guesses.forEach { guess ->
                 mark(guess, puzzle.answer).forEachIndexed { i, m ->
-                    if (m != LetterMark.ABSENT) add(guess[i])
+                    if (m == LetterMark.CORRECT) add(i)
                 }
             }
         }
-        return puzzle.answer.firstOrNull { it !in known }
+        return (0 until LENGTH).firstOrNull { it !in solvedPositions }
     }
 
     /** Positions still worth buying outright: not free, not already bought. */

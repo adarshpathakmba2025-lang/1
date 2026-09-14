@@ -168,7 +168,11 @@ fun HomeScreen(
                     .clickable(onClick = onOpenSettings),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = BitsColors.Muted, modifier = Modifier.size(24.dp))
+                Image(
+                    painter = painterResource(R.drawable.ic_settings_pixel),
+                    contentDescription = "Settings",
+                    modifier = Modifier.size(26.dp),
+                )
             }
         }
 
@@ -254,19 +258,27 @@ fun HomeScreen(
 
 @Composable
 private fun SearchField(value: String, onValueChange: (String) -> Unit) {
-    Row(
-        modifier = Modifier
-            .tutorialTarget(TutorialTarget.SEARCH)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0x800A1017))
-            .padding(start = 12.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(Icons.Filled.Search, contentDescription = null, tint = BitsColors.Muted, modifier = Modifier.size(18.dp))
+    // Square arcade frame with an offset shadow, matching the games section.
+    Box(Modifier.tutorialTarget(TutorialTarget.SEARCH).fillMaxWidth().padding(bottom = 3.dp, end = 3.dp)) {
+        Box(
+            Modifier
+                .padding(start = 3.dp, top = 3.dp)
+                .matchParentSize()
+                .background(Color(0x73000000))
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF33445A))
+                .padding(1.5.dp)
+                .background(Color(0xFF0E1620))
+                .padding(start = 12.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+        PixelGlyph("\uD83D\uDD0D", BitsColors.Muted)
         Box(Modifier.weight(1f).padding(horizontal = 10.dp, vertical = 12.dp)) {
             if (value.isEmpty()) {
-                Text("Search everything", style = BitsText.Body.copy(color = BitsColors.Muted))
+                Text("SEARCH EVERYTHING", style = BitsText.ChipLabel.copy(color = BitsColors.Muted))
             }
             BasicTextField(
                 value = value,
@@ -282,14 +294,20 @@ private fun SearchField(value: String, onValueChange: (String) -> Unit) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(50))
                     .clickable { onValueChange("") },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Close, contentDescription = "Clear search", tint = BitsColors.Muted, modifier = Modifier.size(18.dp))
+                Text("X", style = BitsText.ChipLabel.copy(color = BitsColors.Muted))
             }
         }
+        }
     }
+}
+
+/** A single pixel-font glyph, used where an icon would otherwise break the retro look. */
+@Composable
+private fun PixelGlyph(glyph: String, tint: Color) {
+    Text(glyph, style = BitsText.ChipLabel.copy(color = tint))
 }
 
 @Composable
@@ -300,8 +318,15 @@ private fun CategoryChips(
     onSelect: (String) -> Unit,
     onToggleManage: () -> Unit,
 ) {
+    val rowState = rememberLazyListState()
+    // Keep the highlighted chip on screen as the user swipes through categories.
+    LaunchedEffect(selectedId, categories) {
+        val index = categories.indexOfFirst { it.id == selectedId }
+        if (index >= 0) rowState.animateScrollToItem(index, scrollOffset = -60)
+    }
     Row(verticalAlignment = Alignment.CenterVertically) {
         LazyRow(
+            state = rowState,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
                 .weight(1f)

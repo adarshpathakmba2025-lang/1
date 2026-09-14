@@ -38,7 +38,8 @@ import com.bits.app.data.ClockStyles
 import com.bits.app.data.WidgetThemes
 import com.bits.app.data.claimEasterEgg
 import com.bits.app.data.spendOnReveal
-import com.bits.app.data.spendPoints
+import com.bits.app.data.spendOnHint
+import com.bits.app.data.withRejectedAttempt
 import com.bits.app.data.startWordleDay
 import com.bits.app.data.withWordleGuess
 import com.bits.app.data.withHideHintSeen
@@ -271,6 +272,7 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                                             best = current.highScore(GameId.Wordle.key),
                                             hintPoints = current.preferences.hintPoints,
                                             purchased = current.preferences.wordleRevealed,
+                                            attempts = current.preferences.wordleAttempts,
                                             onGuess = { guess, won ->
                                                 repository.edit { s ->
                                                     val next = s.withWordleGuess(day, guess, won)
@@ -281,9 +283,10 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                                             onBuyReveal = { index ->
                                                 repository.edit { it.spendOnReveal(index, com.bits.app.games.Wordle.REVEAL_COST) }
                                             },
-                                            onPeek = {
-                                                repository.edit { it.spendPoints(com.bits.app.games.Wordle.PEEK_COST) }
+                                            onHint = { index ->
+                                                repository.edit { it.spendOnHint(index, com.bits.app.games.Wordle.PEEK_COST) }
                                             },
+                                            onRejected = { repository.edit { it.withRejectedAttempt() } },
                                             onBack = back,
                                         )
                                     }

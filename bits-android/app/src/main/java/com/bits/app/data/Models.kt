@@ -69,6 +69,8 @@ data class Preferences(
     val wordleDay: Long,
     val wordleGuesses: List<String>,
     val wordleStreak: Int,
+    /** Every submission this day, including words rejected as not in the list. */
+    val wordleAttempts: Int,
     /** Fewest flips ever used to clear a Memory round. 0 means nothing recorded yet. */
     val memoryBestTries: Int,
     /** Spendable hint points, earned one per solved daily puzzle. */
@@ -94,6 +96,7 @@ data class Preferences(
             wordleDay = 0L,
             wordleGuesses = emptyList(),
             wordleStreak = 0,
+            wordleAttempts = 0,
             memoryBestTries = 0,
             hintPoints = 0,
             wordleRevealed = emptySet(),

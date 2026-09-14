@@ -624,9 +624,11 @@ fun WordleScreen(
     best: Int,
     hintPoints: Int,
     purchased: Set<Int>,
+    attempts: Int,
     onGuess: (String, Boolean) -> Unit,
     onBuyReveal: (Int) -> Unit,
-    onPeek: () -> Unit,
+    onHint: (Int) -> Unit,
+    onRejected: () -> Unit,
     onBack: () -> Unit,
 ) {
     val puzzle = remember(dayIndex) { Wordle.puzzleFor(dayIndex) }
@@ -652,6 +654,8 @@ fun WordleScreen(
             message = "Not in word list"
             shake += 1
             typed = ""
+            // Still counts as a go, so the final tally matches what the player actually did.
+            onRejected()
             return
         }
         message = null
@@ -683,24 +687,28 @@ fun WordleScreen(
 
             HintBar(
                 points = hintPoints,
-                canPeek = !solved && hintPoints >= Wordle.PEEK_COST,
+                canPeek = !solved && hintPoints >= Wordle.PEEK_COST &&
+                    Wordle.nextHintIndex(puzzle, guesses, purchased) != null,
                 canReveal = !solved && hintPoints >= Wordle.REVEAL_COST &&
                     Wordle.revealableIndices(puzzle, purchased).isNotEmpty(),
                 picking = pickingReveal,
                 onPeek = {
-                    val letter = Wordle.peekLetter(puzzle, guesses, purchased)
-                    if (letter == null) message = "Nothing left to hint"
+                    // Fills in the next unknown box rather than printing a line of text,
+                    // and because each hint consumes a box, no two hints repeat.
+                    val index = Wordle.nextHintIndex(puzzle, guesses, purchased)
+                    if (index == null) message = "Nothing left to hint"
                     else {
-                        onPeek()
-                        message = "$letter is in the word"
+                        onHint(index)
+                        message = null
                     }
                 },
                 onStartReveal = { pickingReveal = !pickingReveal },
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             )
 
-            // The board grows as guesses are made, so it scrolls rather than being capped.
-            val rowCount = maxOf(Wordle.ROWS_SHOWN_MIN, guesses.size + if (solved) 0 else 1)
+            // Exactly the rows that have been used, plus the one being typed. No empty
+            // rows implying tries that don't exist.
+            val rowCount = (guesses.size + if (solved) 0 else 1).coerceAtLeast(1)
             val boardScroll = rememberScrollState()
             LaunchedEffect(guesses.size) { boardScroll.animateScrollTo(boardScroll.maxValue) }
 
@@ -785,7 +793,7 @@ fun WordleScreen(
 
             Text(
                 text = when {
-                    solved -> "SOLVED IN ${guesses.size} ${if (guesses.size == 1) "TRY" else "TRIES"}"
+                    solved -> "SOLVED IN $attempts ${if (attempts == 1) "TRY" else "TRIES"}"
                     pickingReveal -> "TAP A BOX TO REVEAL IT"
                     else -> message?.uppercase() ?: "+1 HINT POINT PER ROW"
                 },

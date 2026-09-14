@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -56,11 +58,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.bits.app.R
-import androidx.compose.foundation.ScrollState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInParent
 import kotlinx.coroutines.launch
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.WidgetSettings
@@ -143,11 +142,10 @@ fun SettingsScreen(
             Text("Settings", style = BitsText.Brand, modifier = Modifier.padding(start = 4.dp))
         }
 
-        val pageScroll = rememberScrollState()
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(pageScroll)
+                .verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, end = 16.dp, bottom = 28.dp)
         ) {
             ProBanner(state, onOpenPaywall)
@@ -158,7 +156,6 @@ fun SettingsScreen(
                 onOpenPaywall = onOpenPaywall,
                 clockPreview = clockPreview,
                 onPreviewClock = { clockPreview = it },
-                pageScroll = pageScroll,
             )
 
             SectionLabel("Lists")
@@ -339,7 +336,6 @@ private fun WidgetListsSection(
     onOpenPaywall: () -> Unit,
     clockPreview: String?,
     onPreviewClock: (String?) -> Unit,
-    pageScroll: ScrollState,
 ) {
     val context = LocalContext.current
     val ids by produceState(initialValue = placedWidgetIds(context)) {
@@ -384,7 +380,6 @@ private fun WidgetListsSection(
                 clockPreview = clockPreview,
                 onPreviewClock = onPreviewClock,
                 appWidgetId = null,
-                pageScroll = pageScroll,
             )
             Card {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -413,7 +408,6 @@ private fun WidgetListsSection(
                 clockPreview = clockPreview,
                 onPreviewClock = onPreviewClock,
                 appWidgetId = appWidgetId,
-                pageScroll = pageScroll,
             )
         }
     }
@@ -435,15 +429,14 @@ private fun WidgetCard(
     clockPreview: String?,
     onPreviewClock: (String?) -> Unit,
     appWidgetId: Int?,
-    pageScroll: ScrollState,
 ) {
     val scope = rememberCoroutineScope()
-    // Where this card's preview sits on the page, so a long-press can jump back to it.
-    var previewOffset by remember { mutableIntStateOf(0) }
+    // Measuring an offset by hand proved unreliable inside a nested scroll. Asking the
+    // preview itself to come into view is handled by the framework and always lands.
+    val previewRequester = remember { BringIntoViewRequester() }
 
-    // Long-pressing a swatch is pointless if the preview is off screen, so scroll to it.
     fun jumpToPreview() {
-        scope.launch { pageScroll.animateScrollTo((previewOffset - 40).coerceAtLeast(0)) }
+        scope.launch { previewRequester.bringIntoView() }
     }
 
     var expanded by remember { mutableStateOf(appWidgetId == null) }
@@ -488,7 +481,7 @@ private fun WidgetCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(260.dp)
-                .onGloballyPositioned { previewOffset = pageScroll.value + it.positionInParent().y.toInt() },
+                .bringIntoViewRequester(previewRequester),
         )
 
         OpacitySlider(
@@ -616,6 +609,7 @@ private fun WidgetCard(
                                     else {
                                         onPreviewClock(null)
                                         apply { it.copy(clockStyleOverride = style.id) }
+                                        jumpToPreview()
                                     }
                                 },
                                 onPreview = {
@@ -657,6 +651,7 @@ private fun WidgetCard(
                                     themePreview = null
                                     if (appWidgetId == null) repository.edit { it.withWidgetTheme(theme.id) }
                                     else apply { it.copy(themeIdOverride = theme.id) }
+                                    jumpToPreview()
                                 }
                             },
                             onPreview = {

@@ -137,7 +137,7 @@ private val tourSteps = listOf(
     ),
     TourStep(
         title = plain("Shift it across"),
-        body = "Tap a bit, then use \u2039 and \u203A to send it to the category on either side.",
+        body = "Tap a bit, then use the arrows to send it to the category on either side.",
         target = TutorialTarget.ITEM,
     ),
     TourStep(
@@ -262,11 +262,12 @@ fun TutorialOverlay(targets: TutorialTargets, onFinish: () -> Unit) {
                     }
                 }
                 Spacer(Modifier.height(14.dp))
-                Text(step.title, style = BitsText.PixelHeading.copy(color = Arcade.Glow))
+                // The frame is pixel-styled; the words stay in the readable body face.
+                Text(step.title, style = BitsText.Subtitle.copy(color = Arcade.Glow))
                 Text(
                     text = step.body,
-                    style = BitsText.PixelBody.copy(color = BitsColors.Ink, lineHeight = 19.sp),
-                    modifier = Modifier.padding(top = 10.dp, end = 6.dp),
+                    style = BitsText.Body.copy(color = BitsColors.Ink),
+                    modifier = Modifier.padding(top = 8.dp, end = 6.dp),
                 )
                 Spacer(Modifier.height(14.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -275,16 +276,16 @@ fun TutorialOverlay(targets: TutorialTargets, onFinish: () -> Unit) {
                         PixelButton("Get started", onClick = onFinish)
                     } else {
                         Text(
-                            text = "SKIP",
-                            style = BitsText.PixelBody.copy(color = BitsColors.Muted),
+                            text = "Skip tour",
+                            style = BitsText.Small.copy(color = BitsColors.Muted),
                             modifier = Modifier
                                 .clickable(onClick = onFinish)
                                 .padding(horizontal = 8.dp, vertical = 10.dp),
                         )
                         Spacer(Modifier.weight(1f))
                         Text(
-                            text = if (index == 0) "TAP RIGHT \u203A" else "\u2039 TAP \u203A",
-                            style = BitsText.PixelBody.copy(color = BitsColors.Muted.copy(alpha = 0.75f)),
+                            text = if (index == 0) "Tap right to continue" else "Tap left or right",
+                            style = BitsText.Small.copy(color = BitsColors.Muted.copy(alpha = 0.75f)),
                             modifier = Modifier.padding(end = 6.dp),
                         )
                     }

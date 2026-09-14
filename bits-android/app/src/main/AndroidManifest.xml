@@ -24,6 +24,15 @@
 
         <!-- The floating card opened by tapping an item's text on the widget. See QuickEditActivity
              for why a widget needs a real Activity to do this, rather than editing in place. -->
+        <!-- The drag-to-reorder sheet opened from a widget. Same floating treatment as
+             the edit card, because a widget itself cannot handle touch gestures. -->
+        <activity
+            android:name=".ReorderActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Bits.Floating" />
+
         <activity
             android:name=".QuickEditActivity"
             android:exported="true"

@@ -58,8 +58,8 @@ fun BitsCheckbox(checked: Boolean, onToggle: () -> Unit, label: String) {
         // Sits against the first line of text, so multi-line items stay tidy.
         contentAlignment = Alignment.TopCenter,
     ) {
-        Box(Modifier.padding(top = 9.dp)) {
-            CheckVisual(checked = checked, size = 19.dp)
+        Box(Modifier.padding(top = 10.dp)) {
+            CheckVisual(checked = checked, size = 16.dp)
         }
     }
 }
@@ -70,11 +70,11 @@ fun BitsCheckbox(checked: Boolean, onToggle: () -> Unit, label: String) {
  */
 @Composable
 fun CheckVisual(checked: Boolean, size: Dp) {
-    // Noticeably wider than tall, with a barely-there radius, as in the reference.
-    val shape = RoundedCornerShape(size * 0.10f)
-    val base = Modifier.size(width = size * 1.35f, height = size * 0.92f).clip(shape)
+    // Small and wide, with a barely-there radius.
+    val shape = RoundedCornerShape(size * 0.12f)
+    val base = Modifier.size(width = size * 1.25f, height = size * 0.78f).clip(shape)
     Box(
-        modifier = if (checked) base.background(BitsColors.Done) else base.border(1.4.dp, BitsColors.Muted, shape),
+        modifier = if (checked) base.background(BitsColors.Done) else base.border(1.2.dp, BitsColors.Muted, shape),
         contentAlignment = Alignment.Center,
     ) {
         if (checked) {
@@ -82,7 +82,7 @@ fun CheckVisual(checked: Boolean, size: Dp) {
                 imageVector = Icons.Filled.Check,
                 contentDescription = null,
                 tint = BitsColors.Bg,
-                modifier = Modifier.size(size * 0.7f),
+                modifier = Modifier.size(size * 0.62f),
             )
         }
     }
@@ -198,8 +198,10 @@ fun InputPill(
         modifier = modifier
             .fillMaxWidth()
             .padding(10.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0x66000000)),
+            // Square arcade frame, matching the search bar and category chips.
+            .background(Color(0xFF33445A))
+            .padding(1.5.dp)
+            .background(Color(0xFF0E1620)),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -214,11 +216,11 @@ fun InputPill(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "Add", tint = BitsColors.Amber, modifier = Modifier.size(22.dp))
+            Text("+", style = BitsText.PixelHeading.copy(color = BitsColors.Amber))
         }
         Box(Modifier.weight(1f).padding(vertical = 13.dp)) {
             if (value.isEmpty()) {
-                Text(placeholder, style = BitsText.Body.copy(color = BitsColors.Muted))
+                Text(placeholder.uppercase(), style = BitsText.ChipLabel.copy(color = BitsColors.Muted))
             }
             BasicTextField(
                 value = value,
@@ -235,14 +237,13 @@ fun InputPill(
             )
         }
         Text(
-            text = "Add",
-            style = BitsText.BodyBold.copy(color = if (hasText) BitsColors.Amber else BitsColors.Muted.copy(alpha = 0.6f)),
+            text = "ADD",
+            style = BitsText.ChipLabel.copy(color = if (hasText) BitsColors.Bg else BitsColors.Muted),
             modifier = Modifier
-                .padding(4.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(if (hasText) BitsColors.Amber.copy(alpha = 0.16f) else Color.Transparent)
+                .padding(5.dp)
+                .background(if (hasText) BitsColors.Amber else Color(0xFF1B2735))
                 .clickable(onClick = onSubmit)
-                .padding(horizontal = 14.dp, vertical = 9.dp),
+                .padding(horizontal = 13.dp, vertical = 10.dp),
         )
     }
 }

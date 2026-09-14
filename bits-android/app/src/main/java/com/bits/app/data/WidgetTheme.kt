@@ -112,15 +112,19 @@ object WidgetThemes {
         free = false,
     )
 
-    /** A tenth theme keeps the settings grid even, and this one is the moodiest of them. */
+    /**
+     * The tenth theme, deliberately unlike every other one: vivid magenta, which no other
+     * palette uses. Tide Pool owns the aqua end, Dusty Rose the soft pink, so this sits
+     * hot and saturated on a violet-black.
+     */
     val Nocturne = WidgetTheme(
         id = "nocturne",
-        displayName = "Neon Nocturne",
-        blurb = "Electric cyan on ink",
-        accent = 0xFF4DE2C0,
-        backgroundTint = 0xFF0A1118,
-        ink = 0xFFDDF5EE,
-        doneColor = 0xFF4A6B66,
+        displayName = "Vapor Magenta",
+        blurb = "Hot magenta on violet black",
+        accent = 0xFFFF3FA4,
+        backgroundTint = 0xFF14061A,
+        ink = 0xFFF7E4F2,
+        doneColor = 0xFF8A5878,
         free = false,
     )
 

@@ -76,6 +76,8 @@ object BitsText {
     /** Small enough that DEL and GO fit their keys without shrinking the letter keys. */
     val KeyCap = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 9.sp, lineHeight = 14.sp, color = BitsColors.Ink)
     /** Category chips on the home page, in the arcade face. */
+    /** The reset glyph beside a best score: deliberately chunky. */
+    val PixelReset = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 20.sp, lineHeight = 24.sp, color = BitsColors.Amber)
     val ChipLabel = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 9.sp, lineHeight = 14.sp, color = BitsColors.Ink)
     val PixelCaption = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 7.sp, lineHeight = 13.sp, color = BitsColors.Muted)
     val PixelBody = TextStyle(fontFamily = BitsFonts.Pixel, fontSize = 9.sp, lineHeight = 17.sp, color = BitsColors.Muted)

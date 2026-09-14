@@ -198,21 +198,24 @@ private fun ScoreChip(
             .background(Arcade.Panel)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
+        Text(label, style = BitsText.PixelBody)
+        Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label, style = BitsText.PixelBody, modifier = Modifier.weight(1f))
+            Text(
+                text = if (value == 0) "\u2014" else value.toString(),
+                style = BitsText.PixelScore.copy(color = accent),
+                modifier = Modifier.weight(1f),
+            )
             if (onReset != null) {
-                // A blocky arrow-loop, drawn rather than using a rounded system icon.
+                // Sits plainly under the figure, no frame around it, just bigger.
                 Text(
                     text = "\u21BB",
-                    style = BitsText.PixelBody.copy(color = Arcade.Glow),
+                    style = BitsText.PixelReset.copy(color = Arcade.Glow),
                     modifier = Modifier
-                        .background(Arcade.Border)
                         .clickable(onClick = onReset)
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                        .padding(start = 8.dp, top = 2.dp, bottom = 2.dp),
                 )
             }
         }
-        Spacer(Modifier.height(6.dp))
-        Text(if (value == 0) "\u2014" else value.toString(), style = BitsText.PixelScore.copy(color = accent))
     }
 }

@@ -114,6 +114,22 @@ private fun WidgetBody(context: Context, state: BitsState, appWidgetId: Int) {
             // item text is never drawn underneath it.
             .padding(start = 16.dp, end = 6.dp, top = 14.dp, bottom = 4.dp)
     ) {
+        // Reorder sits top-right, above the list, so it reads as a list control.
+        Row(
+            modifier = GlanceModifier.fillMaxWidth().padding(end = 4.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Spacer(modifier = GlanceModifier.defaultWeight())
+            Image(
+                provider = ImageProvider(R.drawable.ic_reorder_pixel),
+                contentDescription = "Reorder your bits",
+                modifier = GlanceModifier
+                    .size(38.dp)
+                    .padding(9.dp)
+                    .clickable(actionStartActivity(Launch.reorder(context, appWidgetId))),
+            )
+        }
+
         if (settings.showClock) {
             val (layout, heightDp) = clockLayout(state.clockStyleFor(settings).id)
             AndroidRemoteViews(
@@ -126,8 +142,8 @@ private fun WidgetBody(context: Context, state: BitsState, appWidgetId: Int) {
         LazyColumn(modifier = GlanceModifier.defaultWeight().fillMaxWidth()) {
             items(lines) { line ->
                 when (line) {
-                    is WidgetLine.Header -> HeaderLine(context, line.category, line.first, accent)
-                    is WidgetLine.Entry -> EntryLine(context, line.item, ink, done)
+                    is WidgetLine.Header -> HeaderLine(context, line.category, line.first, accent, appWidgetId)
+                    is WidgetLine.Entry -> EntryLine(context, line.item, ink, done, appWidgetId)
                     is WidgetLine.Hint -> Text(
                         text = "Nothing to show. In the app, tap Edit and tap a category name to bring it back.",
                         style = TextStyle(color = ColorProvider(Muted), fontSize = 14.sp, fontWeight = FontWeight.Medium),
@@ -171,7 +187,7 @@ private fun WidgetBody(context: Context, state: BitsState, appWidgetId: Int) {
 }
 
 @Composable
-private fun HeaderLine(context: Context, category: Category, first: Boolean, accent: Color) {
+private fun HeaderLine(context: Context, category: Category, first: Boolean, accent: Color, appWidgetId: Int) {
     // Tapping a heading opens the floating "add to this list" card rather than the whole app.
     Text(
         text = category.name.uppercase(),
@@ -179,12 +195,12 @@ private fun HeaderLine(context: Context, category: Category, first: Boolean, acc
         modifier = GlanceModifier
             .fillMaxWidth()
             .padding(top = if (first) 0.dp else 15.dp, bottom = 5.dp, end = 14.dp)
-            .clickable(actionStartActivity(Launch.quickAdd(context, category.id))),
+            .clickable(actionStartActivity(Launch.quickAdd(context, category.id, appWidgetId))),
     )
 }
 
 @Composable
-private fun EntryLine(context: Context, item: Item, ink: Color, done: Color) {
+private fun EntryLine(context: Context, item: Item, ink: Color, done: Color, appWidgetId: Int) {
     Row(
         modifier = GlanceModifier.fillMaxWidth().padding(vertical = 3.dp, horizontal = 0.dp),
         verticalAlignment = Alignment.Top,
@@ -194,7 +210,7 @@ private fun EntryLine(context: Context, item: Item, ink: Color, done: Color) {
             provider = ImageProvider(if (item.done) R.drawable.ic_check_on else R.drawable.ic_check_off),
             contentDescription = if (item.done) "Mark not done" else "Mark done",
             modifier = GlanceModifier
-                .size(20.dp)
+                .size(width = 22.dp, height = 17.dp)
                 .clickable(
                     actionRunCallback<ToggleItemAction>(
                         actionParametersOf(ToggleItemAction.ItemIdKey to item.id)
@@ -214,7 +230,7 @@ private fun EntryLine(context: Context, item: Item, ink: Color, done: Color) {
             modifier = GlanceModifier
                 .defaultWeight()
                 .padding(end = 14.dp)
-                .clickable(actionStartActivity(Launch.quickEdit(context, item.id))),
+                .clickable(actionStartActivity(Launch.quickEdit(context, item.id, appWidgetId))),
         )
     }
 }

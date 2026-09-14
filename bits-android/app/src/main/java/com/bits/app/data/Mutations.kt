@@ -96,6 +96,113 @@ fun BitsState.shiftTarget(itemId: String, forward: Boolean): Category? {
     return ordered.getOrNull(if (forward) index + 1 else index - 1)
 }
 
+/**
+ * The widget's whole visible list, flattened: every item from every shown category, in
+ * the order they appear on screen. Moving through this sequence is what "reorder from the
+ * widget" means, and it naturally carries an item across a category boundary.
+ */
+fun BitsState.widgetSequence(settings: WidgetSettings): List<Item> =
+    categoriesFor(settings).flatMap { itemsIn(it.id) }
+
+/**
+ * Moves an item one place up or down the widget's flattened list. Crossing a boundary
+ * moves it into the neighbouring category, landing at that category's near edge.
+ *
+ * Returns the state untouched at either end of the list, or for an unknown item, so the
+ * UI only has to dim the arrow.
+ */
+fun BitsState.moveInWidgetOrder(itemId: String, settings: WidgetSettings, up: Boolean): BitsState {
+    val sequence = widgetSequence(settings)
+    val index = sequence.indexOfFirst { it.id == itemId }
+    if (index < 0) return this
+    val neighbourIndex = if (up) index - 1 else index + 1
+    val neighbour = sequence.getOrNull(neighbourIndex) ?: return this
+    val item = sequence[index]
+
+    // Same category: a straight swap of positions.
+    if (neighbour.categoryId == item.categoryId) {
+        return copy(items = items.map {
+            when (it.id) {
+                item.id -> it.copy(position = neighbour.position)
+                neighbour.id -> it.copy(position = item.position)
+                else -> it
+            }
+        })
+    }
+
+    // Different category: land at the edge nearest where it came from.
+    val targetId = neighbour.categoryId
+    val targetItems = itemsIn(targetId)
+    return if (up) {
+        // Moving up means joining the end of the category above.
+        val max = targetItems.maxOfOrNull { it.position } ?: -1
+        copy(items = items.map { if (it.id == item.id) it.copy(categoryId = targetId, position = max + 1) else it })
+    } else {
+        // Moving down means joining the top of the category below, pushing it along.
+        copy(items = items.map {
+            when {
+                it.id == item.id -> it.copy(categoryId = targetId, position = 0)
+                it.categoryId == targetId -> it.copy(position = it.position + 1)
+                else -> it
+            }
+        })
+    }
+}
+
+/**
+ * One row of the widget's flattened list: either a category heading or a bit.
+ * Headings are fixed anchors; bits move between them.
+ */
+sealed interface WidgetRow {
+    data class Header(val categoryId: String) : WidgetRow
+    data class Entry(val itemId: String) : WidgetRow
+}
+
+/** The widget's list as draggable rows, headings included. */
+fun BitsState.widgetRows(settings: WidgetSettings): List<WidgetRow> =
+    categoriesFor(settings).flatMap { category ->
+        listOf(WidgetRow.Header(category.id)) + itemsIn(category.id).map { WidgetRow.Entry(it.id) }
+    }
+
+/**
+ * Applies a dragged arrangement. Each bit takes the category of the heading above it, and
+ * its position from the order within that run, so dragging past a heading genuinely moves
+ * it into that category.
+ *
+ * Anything not represented in [rows] is left exactly as it was, which keeps hidden
+ * categories and other widgets untouched.
+ */
+fun BitsState.applyWidgetRows(rows: List<WidgetRow>): BitsState {
+    val assignment = mutableMapOf<String, Pair<String, Int>>()
+    var currentCategory: String? = null
+    var index = 0
+    for (row in rows) {
+        when (row) {
+            is WidgetRow.Header -> {
+                currentCategory = row.categoryId
+                index = 0
+            }
+            is WidgetRow.Entry -> {
+                val category = currentCategory ?: continue
+                assignment[row.itemId] = category to index
+                index += 1
+            }
+        }
+    }
+    if (assignment.isEmpty()) return this
+    return copy(items = items.map { item ->
+        val target = assignment[item.id]
+        if (target == null) item else item.copy(categoryId = target.first, position = target.second)
+    })
+}
+
+fun BitsState.canMoveInWidgetOrder(itemId: String, settings: WidgetSettings, up: Boolean): Boolean {
+    val sequence = widgetSequence(settings)
+    val index = sequence.indexOfFirst { it.id == itemId }
+    if (index < 0) return false
+    return if (up) index > 0 else index < sequence.lastIndex
+}
+
 fun BitsState.reorderItems(orderedIds: List<String>): BitsState {
     val positions = orderedIds.withIndex().associate { (index, id) -> id to index }
     return copy(items = items.map { item -> positions[item.id]?.let { item.copy(position = it) } ?: item })
@@ -222,6 +329,7 @@ fun BitsState.startWordleDay(dayIndex: Long, brokeStreak: Boolean): BitsState =
             wordleDay = dayIndex,
             wordleGuesses = emptyList(),
             wordleRevealed = emptySet(),
+            wordleAttempts = 0,
             wordleStreak = if (brokeStreak) 0 else preferences.wordleStreak,
         )
     )
@@ -236,6 +344,7 @@ fun BitsState.withWordleGuess(dayIndex: Long, guess: String, solved: Boolean): B
             wordleDay = dayIndex,
             wordleGuesses = preferences.wordleGuesses + guess,
             wordleStreak = if (solved) preferences.wordleStreak + 1 else preferences.wordleStreak,
+            wordleAttempts = preferences.wordleAttempts + 1,
             hintPoints = preferences.hintPoints + 1,
         )
     )
@@ -252,10 +361,21 @@ fun BitsState.spendOnReveal(index: Int, cost: Int): BitsState {
     )
 }
 
-/** Spends points on the cheap "one letter is in there somewhere" hint. */
-fun BitsState.spendPoints(cost: Int): BitsState =
-    if (preferences.hintPoints < cost) this
-    else copy(preferences = preferences.copy(hintPoints = preferences.hintPoints - cost))
+/** Spends points on the cheap hint, which fills in one more box. */
+fun BitsState.spendOnHint(index: Int, cost: Int): BitsState {
+    if (preferences.hintPoints < cost) return this
+    if (index in preferences.wordleRevealed) return this
+    return copy(
+        preferences = preferences.copy(
+            hintPoints = preferences.hintPoints - cost,
+            wordleRevealed = preferences.wordleRevealed + index,
+        )
+    )
+}
+
+/** Counts a rejected word as an attempt, without recording it as a guess. */
+fun BitsState.withRejectedAttempt(): BitsState =
+    copy(preferences = preferences.copy(wordleAttempts = preferences.wordleAttempts + 1))
 
 /** Keeps the lowest clear ever. Zero means no record yet, so the first clear always sticks. */
 fun BitsState.withMemoryTries(tries: Int): BitsState {
