@@ -26,6 +26,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bits.app.games.Direction
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.bits.app.R
 import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
 
@@ -193,29 +196,31 @@ private fun ScoreChip(
 ) {
     Column(
         modifier
+            // A fixed height on both chips keeps them identical whether or not one
+            // carries a reset control.
+            .height(96.dp)
             .background(Arcade.Border)
             .padding(2.dp)
             .background(Arcade.Panel)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(label, style = BitsText.PixelBody)
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = if (value == 0) "\u2014" else value.toString(),
-                style = BitsText.PixelScore.copy(color = accent),
-                modifier = Modifier.weight(1f),
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = if (value == 0) "\u2014" else value.toString(),
+            style = BitsText.PixelScore.copy(color = accent),
+        )
+        if (onReset != null) {
+            Spacer(Modifier.height(8.dp))
+            Image(
+                painter = painterResource(R.drawable.ic_refresh_pixel),
+                contentDescription = "Reset best",
+                modifier = Modifier
+                    .size(22.dp)
+                    .clickable(onClick = onReset),
             )
-            if (onReset != null) {
-                // Sits plainly under the figure, no frame around it, just bigger.
-                Text(
-                    text = "\u21BB",
-                    style = BitsText.PixelReset.copy(color = Arcade.Glow),
-                    modifier = Modifier
-                        .clickable(onClick = onReset)
-                        .padding(start = 8.dp, top = 2.dp, bottom = 2.dp),
-                )
-            }
         }
     }
 }

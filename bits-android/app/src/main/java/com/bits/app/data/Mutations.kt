@@ -296,37 +296,16 @@ fun BitsState.withHighScore(gameId: String, score: Int): BitsState =
     if (score <= highScore(gameId)) this
     else copy(preferences = preferences.copy(highScores = preferences.highScores + (gameId to score)))
 
-/**
- * Claims the entire easter-egg reward in one shot: one theme, one game, one clock style.
- *
- * Deliberately all-or-nothing and one-way. It refuses outright if the egg has already
- * been claimed, if any bonus slot is already filled, or if any chosen item is a free one
- * (which would waste the pick). Because it is a single atomic edit, there is no window
- * in which a caller could claim a theme, then come back later for a second game.
- */
-fun BitsState.claimEasterEgg(themeId: String, gameId: String, clockId: String): BitsState {
-    if (preferences.easterEggUsed) return this
-    if (preferences.bonusThemeId.isNotEmpty()) return this
-    if (preferences.bonusGameId.isNotEmpty()) return this
-    if (preferences.bonusClockId.isNotEmpty()) return this
-
-    // Every pick must be a real locked item, and must actually exist.
-    val theme = WidgetThemes.all.firstOrNull { it.id == themeId } ?: return this
-    if (theme.free) return this
-    val clock = ClockStyles.all.firstOrNull { it.id == clockId } ?: return this
-    if (clock.free) return this
-    if (gameId.isBlank()) return this
-
-    return copy(
-        preferences = preferences.copy(
-            bonusThemeId = theme.id,
-            bonusGameId = gameId,
-            bonusClockId = clock.id,
-            easterEggUsed = true,
-            widgetThemeId = theme.id,
-        )
-    )
+/** Keeps the lowest clear ever. Zero means no record yet, so the first clear always sticks. */
+fun BitsState.withMemoryTries(tries: Int): BitsState {
+    if (tries <= 0) return this
+    val best = preferences.memoryBestTries
+    return if (best in 1 until tries) this
+    else copy(preferences = preferences.copy(memoryBestTries = tries))
 }
+
+fun BitsState.resetMemoryBest(): BitsState =
+    copy(preferences = preferences.copy(memoryBestTries = 0))
 
 /** Starts a fresh day's Word Guess, clearing yesterday's board. */
 fun BitsState.startWordleDay(dayIndex: Long, brokeStreak: Boolean): BitsState =
@@ -383,16 +362,62 @@ fun BitsState.spendOnHint(index: Int, cost: Int): BitsState {
 fun BitsState.withRejectedAttempt(): BitsState =
     copy(preferences = preferences.copy(wordleAttempts = preferences.wordleAttempts + 1))
 
-/** Keeps the lowest clear ever. Zero means no record yet, so the first clear always sticks. */
-fun BitsState.withMemoryTries(tries: Int): BitsState {
-    if (tries <= 0) return this
-    val best = preferences.memoryBestTries
-    return if (best in 1 until tries) this
-    else copy(preferences = preferences.copy(memoryBestTries = tries))
+/**
+ * Claims one whole easter-egg reward set: a theme, a game and a clock style together.
+ *
+ * Refuses unless a set is genuinely owed (claims < allowance), and refuses any pick that
+ * is free or already owned, so a set can never be spent on something worthless. Being a
+ * single atomic edit, there is no window to take a theme now and a game later.
+ */
+fun BitsState.claimEasterEgg(themeId: String, gameId: String, clockId: String): BitsState {
+    if (!easterEggAvailable) return this
+
+    val theme = WidgetThemes.all.firstOrNull { it.id == themeId } ?: return this
+    if (theme.free || theme.id in preferences.bonusThemeIds) return this
+    val clock = ClockStyles.all.firstOrNull { it.id == clockId } ?: return this
+    if (clock.free || clock.id in preferences.bonusClockIds) return this
+    if (gameId.isBlank() || gameId in preferences.bonusGameIds) return this
+
+    return copy(
+        preferences = preferences.copy(
+            bonusThemeIds = preferences.bonusThemeIds + theme.id,
+            bonusGameIds = preferences.bonusGameIds + gameId,
+            bonusClockIds = preferences.bonusClockIds + clock.id,
+            easterEggClaims = preferences.easterEggClaims + 1,
+            widgetThemeId = theme.id,
+        )
+    )
 }
 
-fun BitsState.resetMemoryBest(): BitsState =
-    copy(preferences = preferences.copy(memoryBestTries = 0))
+/** Records first launch, once. Later calls are ignored so the clock can't be restarted. */
+fun BitsState.withInstallRecorded(now: Long): BitsState =
+    if (preferences.installedAt != 0L) this
+    else copy(preferences = preferences.copy(installedAt = now))
+
+/**
+ * The thirty-day note. It grants nothing on its own: the reward set is still the single
+ * one every user starts with. All this does is point the user at the hidden easter egg
+ * they might otherwise never find.
+ *
+ * Skipped entirely if they already discovered it, since the note would then be pointless.
+ * Happens at most once, and only once thirty days have truly passed since first launch.
+ */
+fun BitsState.grantAnniversary(now: Long, message: String): BitsState {
+    if (preferences.anniversaryGiven) return this
+    val installed = preferences.installedAt
+    if (installed == 0L) return this
+    if (now - installed < ANNIVERSARY_MILLIS) return this
+    // Nothing left to point them at.
+    if (!easterEggAvailable) return copy(preferences = preferences.copy(anniversaryGiven = true))
+
+    val withMessage = addItem(TODAY_ID, message)
+    return withMessage.copy(
+        preferences = withMessage.preferences.copy(anniversaryGiven = true),
+    )
+}
+
+/** Thirty days in milliseconds. */
+const val ANNIVERSARY_MILLIS = 30L * 24 * 60 * 60 * 1000
 
 fun BitsState.withOnboardingDone(): BitsState =
     copy(preferences = preferences.copy(onboardingDone = true))
@@ -405,9 +430,13 @@ fun BitsState.withOnboardingDone(): BitsState =
 fun BitsState.withEntitlementsFrom(device: BitsState): BitsState = copy(
     preferences = preferences.copy(
         isPro = device.preferences.isPro,
-        bonusThemeId = device.preferences.bonusThemeId,
-        bonusGameId = device.preferences.bonusGameId,
-        bonusClockId = device.preferences.bonusClockId,
-        easterEggUsed = device.preferences.easterEggUsed,
+        bonusThemeIds = device.preferences.bonusThemeIds,
+        bonusGameIds = device.preferences.bonusGameIds,
+        bonusClockIds = device.preferences.bonusClockIds,
+        easterEggAllowance = device.preferences.easterEggAllowance,
+        easterEggClaims = device.preferences.easterEggClaims,
+        // The install clock and the thank-you also belong to the device, not the file.
+        installedAt = device.preferences.installedAt,
+        anniversaryGiven = device.preferences.anniversaryGiven,
     )
 )

@@ -622,7 +622,10 @@ private fun EditField(
         }
     }
 
+    val editScroll = rememberScrollState()
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    // Follow the caret down as a long bit keeps growing.
+    LaunchedEffect(value.text) { editScroll.animateScrollTo(editScroll.maxValue) }
 
     Column(modifier.padding(top = 9.dp, bottom = 2.dp)) {
         BasicTextField(
@@ -633,6 +636,8 @@ private fun EditField(
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = 220.dp)
+                .verticalScroll(editScroll)
                 .focusRequester(focusRequester)
                 .onFocusChanged { focus ->
                     if (focus.isFocused) hadFocus = true else if (hadFocus) save()
@@ -850,7 +855,9 @@ private fun ShiftArrow(glyph: String, enabled: Boolean, onClick: () -> Unit) {
 private fun QuickAddSheet(categoryName: String, onDismiss: () -> Unit, onAdd: (String) -> Unit) {
     var value by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
+    val addScroll = rememberScrollState()
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    LaunchedEffect(value) { addScroll.animateScrollTo(addScroll.maxValue) }
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Column(
@@ -876,7 +883,7 @@ private fun QuickAddSheet(categoryName: String, onDismiss: () -> Unit, onAdd: (S
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 200.dp)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(addScroll)
                     .focusRequester(focusRequester)
                     .padding(top = 12.dp),
             )

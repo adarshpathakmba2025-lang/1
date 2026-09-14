@@ -183,7 +183,7 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                             onOpenSettings = { screen = Screen.Settings },
                             onOpenGames = { screen = Screen.GamesHub },
                             onTitleTap = {
-                                if (!current.preferences.easterEggUsed) {
+                                if (current.easterEggAvailable) {
                                     tapCount += 1
                                     if (tapCount >= 4) {
                                         tapCount = 0
@@ -319,11 +319,16 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                     )
                 }
 
-                if (showUnlock && !current.preferences.easterEggUsed) {
+                if (showUnlock && current.easterEggAvailable) {
+                    // Only things still locked are offered, so a set is never wasted.
                     EasterEggDialog(
-                        lockedThemes = WidgetThemes.all.filterNot { it.free },
-                        lockedGames = GameId.entries.filterNot { it.free }.map { it.key to it.title },
-                        lockedClocks = ClockStyles.all.filterNot { it.free }.map { it.id to it.displayName },
+                        lockedThemes = WidgetThemes.all.filter { !it.free && !current.canUseTheme(it.id) },
+                        lockedGames = GameId.entries
+                            .filter { !it.free && !current.canPlayGame(it.key, it.free) }
+                            .map { it.key to it.title },
+                        lockedClocks = ClockStyles.all
+                            .filter { !it.free && !current.canUseClockStyle(it.id) }
+                            .map { it.id to it.displayName },
                         onClaim = { themeId, gameId, clockId ->
                             repository.edit { it.claimEasterEgg(themeId, gameId, clockId) }
                             showUnlock = false

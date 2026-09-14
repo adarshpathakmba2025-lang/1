@@ -1,14 +1,32 @@
 # Bits
 
-Your external brain, living on your home screen. Android v1.1.1.
+Your external brain, living on your home screen. Android v1.2.1.
 
 ## Updating
 
 1. Upload these files to your repo, replacing the old ones. Commit.
-2. **Actions** -> green tick -> download **bits-apk** -> install over v1.1.
+2. **Actions** -> green tick -> download **bits-apk** -> install over v1.2.
 3. Remove and re-add the widget so it picks up the new reorder button.
 
-Settings -> About -> Version should read **1.1.1**.
+Settings -> About -> Version should read **1.2.1**.
+
+## New in v1.2
+
+**A thirty-day signpost.** Thirty days after first launch, a bit appears in Today pointing
+the user at the hidden easter egg they might otherwise never find. It grants nothing by
+itself: the reward remains the single set every user has always had, claimable once.
+
+If the user already found the egg, no note appears at all, since it would point at nothing.
+The allowance is fixed at one and can never rise. Restoring a backup grants nothing, the
+install clock included, so the thirty days cannot be rewound.
+
+**Memory Match** - Tries and Best are now identical in size, centred, with a proper pixel
+refresh icon beneath the Best figure.
+
+**Widget footer icons** share one size and inset, so the row is even.
+
+**Long bits scroll as you type**, in both the app and the widget card, so the caret is
+never left behind.
 
 ## New in v1.1.1
 
@@ -57,7 +75,7 @@ workaround, and it opens over the home screen without ever showing the full app.
 ## Project layout
 
 - `data/` model, midnight move, storage, backups, themes, clocks, boards, hints, ordering
-- `games/` pure game rules, unit-tested (383 checks pass)
+- `games/` pure game rules, unit-tested (439 checks pass)
 - `widget/` the home screen widget (Jetpack Glance)
 - `time/` wakes the app after midnight, on reboot, on time zone changes
 - `ui/` screens, onboarding, retro games, Pro page, tour, armed delete

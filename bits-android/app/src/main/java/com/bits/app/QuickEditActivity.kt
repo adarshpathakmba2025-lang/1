@@ -3,6 +3,7 @@ package com.bits.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -151,6 +152,7 @@ private fun EditorField(
     onValueChange: (TextFieldValue) -> Unit,
     onSubmit: () -> Unit,
     skin: CardSkin,
+    scroll: ScrollState,
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -159,6 +161,8 @@ private fun EditorField(
         focusRequester.requestFocus()
         keyboard?.show()
     }
+    // Keep the caret in view as a long bit keeps growing.
+    LaunchedEffect(value.text) { scroll.animateScrollTo(scroll.maxValue) }
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
@@ -200,15 +204,17 @@ private fun QuickAddCard(categoryId: String, appWidgetId: Int, repository: BitsR
             text = "Add to ${category?.name ?: "list"}",
             style = BitsText.Small.copy(color = skin.accent),
         )
+        val addScroll = rememberScrollState()
         EditorField(
             value = value,
             onValueChange = { value = it },
             onSubmit = save,
             skin = skin,
+            scroll = addScroll,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = 220.dp)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(addScroll)
                 .padding(top = 10.dp),
         )
         Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(skin.accent))
@@ -268,15 +274,17 @@ private fun QuickEditCard(itemId: String?, appWidgetId: Int, repository: BitsRep
             )
             // Capped and scrollable, so a very long note can't push the buttons
             // off the bottom of the screen.
+            val editScroll = rememberScrollState()
             EditorField(
                 value = value,
                 onValueChange = { value = it },
                 onSubmit = save,
                 skin = skin,
+                scroll = editScroll,
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(max = 220.dp)
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(editScroll)
                     .padding(top = 9.dp),
             )
         }

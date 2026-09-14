@@ -183,8 +183,15 @@ class BitsRepository private constructor(context: Context) {
         val existing = _state.value
         var dirty = false
         val base: BitsState = existing ?: (read() ?: Seed.create().also { dirty = true })
-        val rolled = Rollover.apply(base, today())
-        if (rolled !== base) dirty = true
+        val now = System.currentTimeMillis()
+        // Start the thirty-day clock on the first read, then drop in the note pointing at
+        // the easter egg once it is due. Both are one-way, so repeated reads are harmless.
+        val stamped = base.withInstallRecorded(now)
+        if (stamped !== base) dirty = true
+        val greeted = stamped.grantAnniversary(now, ANNIVERSARY_MESSAGE)
+        if (greeted !== stamped) dirty = true
+        val rolled = Rollover.apply(greeted, today())
+        if (rolled !== greeted) dirty = true
         if (rolled !== existing) _state.value = rolled
         if (dirty) {
             writeJob?.cancel()
@@ -235,6 +242,12 @@ class BitsRepository private constructor(context: Context) {
     }
 
     companion object {
+        /** Shown in Today once the app has been kept for thirty days. */
+        const val ANNIVERSARY_MESSAGE =
+            "Thank you for keeping our app for a whole month! We have a small surprise for you \u2014 " +
+                "open the Bits app and tap \u201CBits\u201D at the top left of the app's home page " +
+                "four times. (In the app, not the widget!) :D"
+
         @Volatile
         private var instance: BitsRepository? = null
 

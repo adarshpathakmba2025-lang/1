@@ -142,22 +142,23 @@ private fun WidgetBody(context: Context, state: BitsState, appWidgetId: Int) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // Bottom-left: quick access to the mini-games section.
+            // All three icons share one size and one inset, so the row reads evenly.
             Image(
                 provider = ImageProvider(R.drawable.ic_game_controller),
                 contentDescription = "Play a quick game",
                 modifier = GlanceModifier
-                    .size(44.dp)
-                    .padding(8.dp)
+                    .size(FooterIcon)
+                    .padding(FooterInset)
                     .clickable(actionStartActivity(Launch.games(context))),
             )
-            // Reorder lives beside the games button, so the top of the widget stays
+            // Reorder sits beside the games button, so the top of the widget stays
             // entirely given over to the lists.
             Image(
                 provider = ImageProvider(R.drawable.ic_reorder_pixel),
                 contentDescription = "Reorder your bits",
                 modifier = GlanceModifier
-                    .size(44.dp)
-                    .padding(9.dp)
+                    .size(FooterIcon)
+                    .padding(FooterInset)
                     .clickable(actionStartActivity(Launch.reorder(context, appWidgetId))),
             )
             Spacer(modifier = GlanceModifier.defaultWeight())
@@ -165,15 +166,15 @@ private fun WidgetBody(context: Context, state: BitsState, appWidgetId: Int) {
                 text = "Bits",
                 style = TextStyle(color = ColorProvider(Muted), fontSize = 14.sp, fontWeight = FontWeight.Bold),
                 modifier = GlanceModifier
-                    .padding(vertical = 8.dp, horizontal = 6.dp)
+                    .padding(vertical = 10.dp, horizontal = 8.dp)
                     .clickable(actionStartActivity(Launch.app(context))),
             )
             Image(
                 provider = ImageProvider(R.drawable.ic_tune),
                 contentDescription = "Bits settings",
                 modifier = GlanceModifier
-                    .size(44.dp)
-                    .padding(8.dp)
+                    .size(FooterIcon)
+                    .padding(FooterInset)
                     .clickable(actionStartActivity(Launch.settings(context))),
             )
         }

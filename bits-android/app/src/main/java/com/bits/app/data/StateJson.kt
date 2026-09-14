@@ -32,7 +32,7 @@ internal object StateJson {
 
         val root = JSONObject()
             .put("app", "bits")
-            .put("version", 9)
+            .put("version", 10)
             .put("lastRollover", state.lastRollover)
             .put("categories", categories)
             .put("items", items)
@@ -66,9 +66,13 @@ internal object StateJson {
                     .put("clockStyleId", state.preferences.clockStyleId)
                     .put("addToBottom", state.preferences.addToBottom)
                     .put("hideHintSeen", state.preferences.hideHintSeen)
-                    .put("bonusThemeId", state.preferences.bonusThemeId)
-                    .put("bonusGameId", state.preferences.bonusGameId)
-                    .put("bonusClockId", state.preferences.bonusClockId)
+                    .put("bonusThemeIds", JSONArray(state.preferences.bonusThemeIds.toList()))
+                    .put("bonusGameIds", JSONArray(state.preferences.bonusGameIds.toList()))
+                    .put("bonusClockIds", JSONArray(state.preferences.bonusClockIds.toList()))
+                    .put("easterEggAllowance", state.preferences.easterEggAllowance)
+                    .put("easterEggClaims", state.preferences.easterEggClaims)
+                    .put("installedAt", state.preferences.installedAt)
+                    .put("anniversaryGiven", state.preferences.anniversaryGiven)
                     .put("wordleDay", state.preferences.wordleDay)
                     .put("wordleGuesses", JSONArray(state.preferences.wordleGuesses))
                     .put("wordleStreak", state.preferences.wordleStreak)
@@ -76,7 +80,6 @@ internal object StateJson {
                     .put("wordleAttempts", state.preferences.wordleAttempts)
                     .put("hintPoints", state.preferences.hintPoints)
                     .put("wordleRevealed", JSONArray(state.preferences.wordleRevealed.toList()))
-                    .put("easterEggUsed", state.preferences.easterEggUsed)
                     .put("onboardingDone", state.preferences.onboardingDone)
                     .put("highScores", JSONObject(state.preferences.highScores.mapValues { it.value as Any }))
             )
@@ -166,6 +169,15 @@ internal object StateJson {
         return result
     }
 
+    /** Reads a set, falling back to an older single-value field when present. */
+    private fun stringSet(json: JSONObject, key: String, legacy: String): Set<String> {
+        val array = json.optJSONArray(key)
+        if (array != null) {
+            return (0 until array.length()).map { array.getString(it) }.filter { it.isNotEmpty() }.toSet()
+        }
+        return if (legacy.isEmpty()) emptySet() else setOf(legacy)
+    }
+
     private fun decodePreferences(root: JSONObject): Preferences {
         val json = root.optJSONObject("preferences") ?: return Preferences.Default
         val scoresJson = json.optJSONObject("highScores") ?: JSONObject()
@@ -183,10 +195,17 @@ internal object StateJson {
             clockStyleId = json.optString("clockStyleId", ClockStyle.MINIMAL),
             addToBottom = json.optBoolean("addToBottom", false),
             hideHintSeen = json.optBoolean("hideHintSeen", false),
-            bonusThemeId = json.optString("bonusThemeId", ""),
-            bonusGameId = json.optString("bonusGameId", ""),
-            bonusClockId = json.optString("bonusClockId", ""),
-            easterEggUsed = json.optBoolean("easterEggUsed", false),
+            bonusThemeIds = stringSet(json, "bonusThemeIds", json.optString("bonusThemeId", "")),
+            bonusGameIds = stringSet(json, "bonusGameIds", json.optString("bonusGameId", "")),
+            bonusClockIds = stringSet(json, "bonusClockIds", json.optString("bonusClockId", "")),
+            // Older files stored a single used-flag; one claim taken means one set spent.
+            easterEggAllowance = json.optInt("easterEggAllowance", 1),
+            easterEggClaims = json.optInt(
+                "easterEggClaims",
+                if (json.optBoolean("easterEggUsed", false)) 1 else 0,
+            ),
+            installedAt = json.optLong("installedAt", 0L),
+            anniversaryGiven = json.optBoolean("anniversaryGiven", false),
             // Anyone upgrading already has the app set up, so don't force them through onboarding.
             onboardingDone = json.optBoolean("onboardingDone", true),
             highScores = highScores,
