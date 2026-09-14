@@ -50,6 +50,8 @@ import com.bits.app.data.Item
 import com.bits.app.time.MidnightScheduler
 
 private val Muted = Color(0xFF8A95A3)
+private val FooterIcon = 22.dp
+private val FooterInset = 8.dp
 
 private sealed class WidgetLine {
     class Header(val category: Category, val first: Boolean) : WidgetLine()
