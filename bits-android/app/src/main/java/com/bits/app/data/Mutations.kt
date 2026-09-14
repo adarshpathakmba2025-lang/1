@@ -276,8 +276,16 @@ fun BitsState.withAutoClear(enabled: Boolean): BitsState =
 fun BitsState.withTutorialSeen(seen: Boolean): BitsState =
     copy(preferences = preferences.copy(tutorialSeen = seen))
 
-fun BitsState.withPro(pro: Boolean): BitsState =
-    copy(preferences = preferences.copy(isPro = pro))
+/**
+ * Sets Pro on or off. Turning it off also clears the plan, since there is then nothing
+ * to cancel. Turning it on requires saying which plan, so the two always stay consistent.
+ */
+fun BitsState.withPro(pro: Boolean, plan: String = ProPlan.NONE): BitsState = copy(
+    preferences = preferences.copy(
+        isPro = pro,
+        proPlan = if (pro) plan else ProPlan.NONE,
+    )
+)
 
 /** Only takes effect if the theme is free or the user is already Pro; otherwise the state is unchanged. */
 fun BitsState.withWidgetTheme(themeId: String): BitsState =
@@ -430,6 +438,7 @@ fun BitsState.withOnboardingDone(): BitsState =
 fun BitsState.withEntitlementsFrom(device: BitsState): BitsState = copy(
     preferences = preferences.copy(
         isPro = device.preferences.isPro,
+        proPlan = device.preferences.proPlan,
         bonusThemeIds = device.preferences.bonusThemeIds,
         bonusGameIds = device.preferences.bonusGameIds,
         bonusClockIds = device.preferences.bonusClockIds,

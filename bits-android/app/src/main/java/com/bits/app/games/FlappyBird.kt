@@ -2,7 +2,11 @@ package com.bits.app.games
 
 import kotlin.random.Random
 
-data class Pipe(val x: Float, val gapTop: Float)
+// The gap size is fixed the moment a pipe is spawned, and travels with it for its whole
+// life. Difficulty still ramps over time, but only for pipes created after the ramp,
+// never for one already on screen — otherwise a pipe's safe zone could shrink while a
+// player is already committed to flying through it.
+data class Pipe(val x: Float, val gapTop: Float, val gap: Float)
 
 data class FlappyState(
     val birdY: Float,
@@ -79,12 +83,16 @@ object FlappyBird {
             .coerceIn(FlappyState.MAX_RISE, FlappyState.MAX_FALL)
         val birdY = state.birdY + velocity
 
-        val gap = gapFor(state.score)
+        // Every existing pipe simply translates left at the current speed; that's uniform
+        // across the whole list, so it never disturbs the spacing or gap any pipe was
+        // actually spawned with.
         val moved = state.pipes.map { it.copy(x = it.x - speedFor(state.score)) }
             .filter { it.x + FlappyState.PIPE_WIDTH > -0.05f }
         val needsPipe = moved.isEmpty() || moved.maxOf { it.x } < spacingFor(state.score)
         val pipes = if (needsPipe) {
-            moved + Pipe(x = 1.05f, gapTop = 0.10f + random.nextFloat() * (0.90f - gap - 0.10f))
+            // The gap for a brand new pipe is decided once, right now, and baked in.
+            val newGap = gapFor(state.score)
+            moved + Pipe(x = 1.05f, gapTop = 0.10f + random.nextFloat() * (0.90f - newGap - 0.10f), gap = newGap)
         } else {
             moved
         }
@@ -98,7 +106,8 @@ object FlappyBird {
         val hitPipe = pipes.any { pipe ->
             val overlapsX = FlappyState.BIRD_X + FlappyState.BIRD_SIZE > pipe.x &&
                 FlappyState.BIRD_X < pipe.x + FlappyState.PIPE_WIDTH
-            val insideGap = birdY > pipe.gapTop && birdY + FlappyState.BIRD_SIZE < pipe.gapTop + gap
+            // Uses this pipe's own gap, fixed at the moment it spawned, never today's score.
+            val insideGap = birdY > pipe.gapTop && birdY + FlappyState.BIRD_SIZE < pipe.gapTop + pipe.gap
             overlapsX && !insideGap
         }
 

@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -217,6 +218,11 @@ private fun Tile2048(value: Int, modifier: Modifier = Modifier) {
 fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
     var state by remember { mutableStateOf(Snake.newGame()) }
     val latest by rememberUpdatedState(state)
+    // Kept purely for the glide animation: where every segment was one tick ago, so the
+    // canvas can draw a smooth slide from there to where it is now rather than a jump.
+    var previousBody by remember { mutableStateOf(state.body) }
+    var tickStart by remember { mutableStateOf(0L) }
+    var tickLength by remember { mutableStateOf(220L) }
 
     LaunchedEffect(state.dead) {
         if (state.dead) {
@@ -225,7 +231,11 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
         }
         while (true) {
             // Speeds up gently as the snake grows, but never past a playable pace.
-            delay((260L - latest.score * 6L).coerceAtLeast(110L))
+            val interval = (260L - latest.score * 6L).coerceAtLeast(110L)
+            tickLength = interval
+            tickStart = System.currentTimeMillis()
+            delay(interval)
+            previousBody = state.body
             state = Snake.step(state)
             if (latest.dead) break
         }
@@ -241,6 +251,7 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 GameOverBanner("Game over") {
                     onScore(state.score)
                     state = Snake.newGame()
+                    previousBody = state.body
                 }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
@@ -251,6 +262,16 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
             }
         },
     ) {
+        // Redraws every animation frame, gliding each segment from its previous cell to
+        // its current one, so the snake reads as continuous motion rather than a series
+        // of teleports between ticks.
+        var frameNow by remember { mutableStateOf(System.currentTimeMillis()) }
+        LaunchedEffect(state.dead) {
+            while (!state.dead) {
+                withFrameMillis { frameNow = it }
+            }
+        }
+
         Canvas(
             Modifier
                 .fillMaxWidth()
@@ -261,10 +282,18 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 .swipeable { state = Snake.turn(state, it) }
         ) {
             val cell = size.width / Snake.GRID
+            val elapsed = frameNow - tickStart
+            val progress = if (tickLength <= 0L) 1f else (elapsed.toFloat() / tickLength).coerceIn(0f, 1f)
+
             state.body.forEachIndexed { index, point ->
+                // A body can grow between ticks (after eating), so any segment with no
+                // matching previous one just holds still rather than gliding from nowhere.
+                val from = previousBody.getOrNull(index) ?: point
+                val x = lerp(from.x.toFloat(), point.x.toFloat(), progress)
+                val y = lerp(from.y.toFloat(), point.y.toFloat(), progress)
                 drawRect(
                     color = if (index == 0) Color(0xFFBDF0C4) else Color(0xFF7FD68A),
-                    topLeft = Offset(point.x * cell, point.y * cell),
+                    topLeft = Offset(x * cell, y * cell),
                     size = Size(cell - 2f, cell - 2f),
                 )
             }
@@ -276,6 +305,8 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
         }
     }
 }
+
+private fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t
 
 /* ---------------------------- Memory match ---------------------------- */
 
@@ -1038,7 +1069,9 @@ fun FlappyScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 val x = pipe.x * w
                 val pipeWidth = FlappyState.PIPE_WIDTH * w
                 drawRect(Color(0xFF7FD68A), Offset(x, 0f), Size(pipeWidth, pipe.gapTop * h))
-                val lowerTop = (pipe.gapTop + FlappyState.GAP) * h
+                // Drawn with this pipe's own stored gap, so what's visible always matches
+                // exactly what can be collided with.
+                val lowerTop = (pipe.gapTop + pipe.gap) * h
                 drawRect(Color(0xFF7FD68A), Offset(x, lowerTop), Size(pipeWidth, h - lowerTop))
             }
             val birdSize = FlappyState.BIRD_SIZE * h

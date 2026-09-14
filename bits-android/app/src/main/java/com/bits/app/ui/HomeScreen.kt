@@ -663,12 +663,12 @@ private fun EditField(
                 onShift(true)
             }
             Spacer(Modifier.weight(1f))
-            TextAction("Save", BitsColors.Ink, save)
             // Two taps to delete, so a slip never loses a task.
             ArmedDelete {
                 finished = true
                 onDelete()
             }
+            TextAction("Save", BitsColors.Ink, save)
         }
     }
 }

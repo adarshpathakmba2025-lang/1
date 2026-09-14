@@ -2,6 +2,37 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.3
+
+**Package name locked in:** `com.bits.todoandgames`. Permanent from here on.
+
+**Save and Delete swapped** in both the app's item editor and the widget's popup card:
+Delete now sits on the left, Save on the right.
+
+**A real bug found and fixed in Flappy.** Each pipe's collision gap was being
+recalculated every tick from the *current* score rather than the score it was actually
+spawned at, so a pipe's safe zone could shrink while you were already flying through it \u2014
+and the rendering never reflected the real difficulty either, always drawing the easiest
+gap regardless of the true one. Both are now fixed: every pipe permanently remembers its
+own gap the moment it spawns, and rendering draws exactly that. Verified with a 6000-tick
+autopilot run spanning both difficulty ramps.
+
+**Snake input fixed and smoothed.** Two quick swipes in the same tick window used to be
+able to compose into a reversal the player never saw coming, since the second swipe was
+validated against the first swipe's *unconfirmed* result rather than the snake's true
+heading. Turning now buffers exactly one queued direction, always validated against the
+confirmed direction. Movement between ticks now glides continuously instead of teleporting
+cell to cell.
+
+**Cancel a monthly subscription.** A new field remembers whether Pro came from a lifetime
+purchase or a monthly plan, since the two need very different treatment. A "Cancel
+membership" link appears \u2014 only for monthly subscribers \u2014 in Settings near Restore
+purchases, and on the Pro page's unlocked view. Both open Play's own subscription
+management page, which is where Google requires the actual cancel control to live.
+
+**The 4-tap easter egg dialog** now matches the Settings styling: real game icons on the
+game picker, the same little clock-layout preview used for clock styles.
+
 ## Updating
 
 1. Upload these files to your repo, replacing the old ones. Commit.
@@ -75,7 +106,7 @@ workaround, and it opens over the home screen without ever showing the full app.
 ## Project layout
 
 - `data/` model, midnight move, storage, backups, themes, clocks, boards, hints, ordering
-- `games/` pure game rules, unit-tested (439 checks pass)
+- `games/` pure game rules, unit-tested (478 checks pass)
 - `widget/` the home screen widget (Jetpack Glance)
 - `time/` wakes the app after midnight, on reboot, on time zone changes
 - `ui/` screens, onboarding, retro games, Pro page, tour, armed delete

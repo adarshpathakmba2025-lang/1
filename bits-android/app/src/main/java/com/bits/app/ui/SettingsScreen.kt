@@ -110,6 +110,16 @@ private fun openStoreListing(context: Context) {
     }
 }
 
+/**
+ * Opens Play's own subscription management page, where Google requires the actual
+ * cancel control to live. Once a real subscription product id exists, appending
+ * "&sku=<id>&package=<applicationId>" links straight to that one entry instead of the
+ * user's full list of Play subscriptions across every app.
+ */
+private fun openSubscriptionManagement(context: Context) {
+    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/account/subscriptions")))
+}
+
 private fun appVersion(context: Context): String = try {
     context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
 } catch (e: Exception) {
@@ -185,6 +195,10 @@ fun SettingsScreen(
                 RateRow()
                 Divider()
                 LinkRow("Restore purchases", "Already bought Pro? Bring it back", onRestorePurchases)
+                if (state.preferences.proPlan == ProPlan.MONTHLY) {
+                    Divider()
+                    CancelSubscriptionRow()
+                }
                 Divider()
                 VersionRow()
             }
@@ -192,6 +206,17 @@ fun SettingsScreen(
             DeveloperCard(state, repository)
         }
     }
+}
+
+/** Only ever shown to a monthly subscriber; a lifetime purchase has nothing to cancel. */
+@Composable
+private fun CancelSubscriptionRow() {
+    val context = LocalContext.current
+    LinkRow(
+        "Cancel membership",
+        "Opens Play Store subscription settings",
+        color = BitsColors.Danger,
+    ) { openSubscriptionManagement(context) }
 }
 
 @Composable
@@ -258,14 +283,14 @@ private fun ToggleRow(title: String, subtitle: String?, checked: Boolean, onChec
 }
 
 @Composable
-private fun LinkRow(title: String, subtitle: String?, onClick: () -> Unit) {
+private fun LinkRow(title: String, subtitle: String?, color: Color = BitsColors.Ink, onClick: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
     ) {
-        Text(title, style = BitsText.Body)
+        Text(title, style = BitsText.Body.copy(color = color))
         if (subtitle != null) {
             Text(subtitle, style = BitsText.Small, modifier = Modifier.padding(top = 2.dp))
         }
@@ -769,8 +794,9 @@ private fun ClockTile(
  * A tiny abstract picture of how each clock is laid out, filling the same role the colour
  * swatches play on a theme tile.
  */
+/** Shared with the easter-egg dialog, so both pickers look like one family. */
 @Composable
-private fun ClockShape(styleId: String, selected: Boolean) {
+fun ClockShape(styleId: String, selected: Boolean) {
     val strong = if (selected) BitsColors.Amber else BitsColors.Ink.copy(alpha = 0.75f)
     val faint = BitsColors.Muted.copy(alpha = 0.5f)
 
@@ -896,12 +922,28 @@ private fun DeveloperCard(state: BitsState, repository: BitsRepository) {
     var confirmReset by remember { mutableStateOf(false) }
     SectionLabel("Developer \u2014 remove before publishing")
     Card {
-        ToggleRow(
-            title = "Simulate Pro",
-            subtitle = "Local flag only, no real purchase",
-            checked = state.preferences.isPro,
-            onCheckedChange = { on -> repository.edit { it.withPro(on) } },
+        Text("Simulate Pro", style = BitsText.Body)
+        Text(
+            "Local flag only, no real purchase. Pick a plan so the cancel-membership flow can be tested.",
+            style = BitsText.Small,
+            modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(ProPlan.NONE to "Off", ProPlan.LIFETIME to "Lifetime", ProPlan.MONTHLY to "Monthly").forEach { (plan, label) ->
+                val active = state.preferences.proPlan == plan
+                Text(
+                    text = label,
+                    style = BitsText.Small.copy(color = if (active) BitsColors.Bg else BitsColors.Ink),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (active) BitsColors.Amber else BitsColors.PanelBase)
+                        .clickable { repository.edit { it.withPro(plan != ProPlan.NONE, plan) } }
+                        .padding(vertical = 9.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
+        }
         Divider()
         LinkRow("Simulate midnight", "Move Tomorrow into Today now") { repository.simulateMidnight() }
         Divider()

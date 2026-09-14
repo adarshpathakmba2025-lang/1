@@ -32,7 +32,7 @@ internal object StateJson {
 
         val root = JSONObject()
             .put("app", "bits")
-            .put("version", 10)
+            .put("version", 11)
             .put("lastRollover", state.lastRollover)
             .put("categories", categories)
             .put("items", items)
@@ -62,6 +62,7 @@ internal object StateJson {
                     .put("autoClearCompleted", state.preferences.autoClearCompleted)
                     .put("tutorialSeen", state.preferences.tutorialSeen)
                     .put("isPro", state.preferences.isPro)
+                    .put("proPlan", state.preferences.proPlan)
                     .put("widgetThemeId", state.preferences.widgetThemeId)
                     .put("clockStyleId", state.preferences.clockStyleId)
                     .put("addToBottom", state.preferences.addToBottom)
@@ -191,6 +192,7 @@ internal object StateJson {
             autoClearCompleted = json.optBoolean("autoClearCompleted", false),
             tutorialSeen = json.optBoolean("tutorialSeen", false),
             isPro = json.optBoolean("isPro", false),
+            proPlan = json.optString("proPlan", if (json.optBoolean("isPro", false)) ProPlan.LIFETIME else ProPlan.NONE),
             widgetThemeId = json.optString("widgetThemeId", WidgetThemes.Classic.id),
             clockStyleId = json.optString("clockStyleId", ClockStyle.MINIMAL),
             addToBottom = json.optBoolean("addToBottom", false),

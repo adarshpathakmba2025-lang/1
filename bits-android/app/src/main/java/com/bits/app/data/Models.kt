@@ -6,6 +6,13 @@ const val GROCERY_ID = "cat_grocery"
 
 fun isSystemCategory(id: String): Boolean = id == TODAY_ID || id == TOMORROW_ID
 
+/** The plans Pro can be granted under. */
+object ProPlan {
+    const val NONE = ""
+    const val LIFETIME = "lifetime"
+    const val MONTHLY = "monthly"
+}
+
 /** A flat bucket. No nesting, ever. */
 data class Category(
     val id: String,
@@ -47,6 +54,13 @@ data class Preferences(
      * Until then it can only be flipped by the "Simulate Pro" developer switch in Settings.
      */
     val isPro: Boolean,
+    /**
+     * Which plan granted Pro, so a monthly subscriber can be offered a way to cancel
+     * while a lifetime buyer isn't shown a cancel option that would mean nothing for them.
+     * Empty when not Pro. Set by Play Billing once wired up; for now, by the developer
+     * switch, so the flow can be tested before real billing exists.
+     */
+    val proPlan: String,
     val widgetThemeId: String,
     val clockStyleId: String,
     /** New items go to the top of their category unless this is on. */
@@ -92,6 +106,7 @@ data class Preferences(
             autoClearCompleted = false,
             tutorialSeen = false,
             isPro = false,
+            proPlan = "",
             widgetThemeId = WidgetThemes.Classic.id,
             clockStyleId = ClockStyle.MINIMAL,
             addToBottom = false,

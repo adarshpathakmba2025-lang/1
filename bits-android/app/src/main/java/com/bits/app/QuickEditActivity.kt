@@ -291,12 +291,12 @@ private fun QuickEditCard(itemId: String?, appWidgetId: Int, repository: BitsRep
         Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(1.dp).background(skin.accent))
         Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.weight(1f))
-            TextAction("Save", skin.ink) { save() }
             ArmedDelete {
                 settled = true
                 repository.deleteItemWithUndo(item.id)
                 onDone()
             }
+            TextAction("Save", skin.ink) { save() }
         }
     }
 }

@@ -38,7 +38,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.bits.app.R
+import androidx.compose.ui.platform.LocalContext
 import com.bits.app.data.BitsState
+import com.bits.app.data.ProPlan
 import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
 
@@ -203,6 +205,29 @@ fun PaywallScreen(state: BitsState, onBack: () -> Unit, onPurchase: () -> Unit) 
                     text = "Payments aren't switched on yet \u2014 this page is a preview of what's coming.",
                     style = BitsText.Small.copy(color = BitsColors.Muted),
                     modifier = Modifier.padding(top = 14.dp),
+                )
+            }
+
+            if (state.preferences.proPlan == ProPlan.MONTHLY) {
+                val context = LocalContext.current
+                Text(
+                    text = "Cancel membership",
+                    style = BitsText.BodyBold.copy(color = BitsColors.Danger),
+                    modifier = Modifier
+                        .padding(top = 24.dp)
+                        .clickable {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse("https://play.google.com/store/account/subscriptions"),
+                                )
+                            )
+                        },
+                )
+                Text(
+                    "Opens Play Store subscription settings.",
+                    style = BitsText.Small,
+                    modifier = Modifier.padding(top = 3.dp),
                 )
             }
             Spacer(Modifier.height(20.dp))

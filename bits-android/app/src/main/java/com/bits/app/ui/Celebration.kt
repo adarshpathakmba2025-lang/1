@@ -5,6 +5,11 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -104,7 +109,12 @@ fun EasterEggDialog(
                 lockedGames.chunked(2).forEach { pair ->
                     Row(Modifier.padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         pair.forEach { (id, label) ->
-                            PlainOption(label, game == id, Modifier.weight(1f)) { game = id }
+                            GameOption(
+                                label = label,
+                                icon = GameId.entries.firstOrNull { it.key == id }?.icon,
+                                selected = game == id,
+                                modifier = Modifier.weight(1f),
+                            ) { game = id }
                         }
                         if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
@@ -115,7 +125,7 @@ fun EasterEggDialog(
                 lockedClocks.chunked(2).forEach { pair ->
                     Row(Modifier.padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         pair.forEach { (id, label) ->
-                            PlainOption(label, clock == id, Modifier.weight(1f)) { clock = id }
+                            ClockOption(id, label, clock == id, Modifier.weight(1f)) { clock = id }
                         }
                         if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
@@ -191,6 +201,66 @@ private fun PlainOption(label: String, selected: Boolean, modifier: Modifier = M
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 11.dp),
     )
+}
+
+/** A game tile matching the games hub's card: icon on the right, label and selection state. */
+@Composable
+private fun GameOption(label: String, icon: Int?, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Row(
+        modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) BitsColors.Amber.copy(alpha = 0.16f) else BitsColors.Bg)
+            .border(
+                width = if (selected) 1.5.dp else 1.dp,
+                color = if (selected) BitsColors.Amber else BitsColors.Muted.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(10.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = BitsText.Small.copy(color = if (selected) BitsColors.Amber else BitsColors.Ink),
+            modifier = Modifier.weight(1f),
+        )
+        if (icon != null) {
+            Image(painterResource(icon), contentDescription = null, modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+/**
+ * A clock tile matching Settings: the same tiny abstract layout preview standing in for
+ * the theme swatches, so all three pickers in this dialog read as one consistent family.
+ */
+@Composable
+private fun ClockOption(clockId: String, label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(BitsColors.Bg)
+            .border(
+                width = if (selected) 1.5.dp else 1.dp,
+                color = if (selected) BitsColors.Amber else BitsColors.Muted.copy(alpha = 0.25f),
+                shape = RoundedCornerShape(10.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label,
+                style = BitsText.Small.copy(color = if (selected) BitsColors.Amber else BitsColors.Ink),
+                modifier = Modifier.weight(1f),
+            )
+            if (selected) {
+                Icon(Icons.Filled.Check, contentDescription = null, tint = BitsColors.Amber, modifier = Modifier.size(13.dp))
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        ClockShape(clockId, selected)
+    }
 }
 
 /** A short burst of falling pixels. Purely decorative, and it stops on its own. */
