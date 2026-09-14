@@ -26,6 +26,7 @@ import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.layout.Alignment
+import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
@@ -203,20 +204,29 @@ private fun EntryLine(context: Context, item: Item, ink: Color, done: Color, app
         verticalAlignment = Alignment.Top,
     ) {
         // Checkbox: toggles done/undone in place.
-        Image(
-            provider = ImageProvider(if (item.done) R.drawable.ic_check_on else R.drawable.ic_check_off),
-            contentDescription = if (item.done) "Mark not done" else "Mark done",
+        // The tap area is a box wider and taller than the drawn checkbox, reaching into
+        // the gap that used to be a plain Spacer. The checkbox itself is unmoved and
+        // unchanged; only the area that responds to a tap grows, so it is far harder
+        // to miss.
+        Box(
             modifier = GlanceModifier
-                // Nudged down so the box sits on the text baseline rather than above it.
-                .padding(top = 3.dp)
-                .size(width = 22.dp, height = 17.dp)
+                .size(width = 31.dp, height = 26.dp)
                 .clickable(
                     actionRunCallback<ToggleItemAction>(
                         actionParametersOf(ToggleItemAction.ItemIdKey to item.id)
                     )
                 ),
-        )
-        Spacer(modifier = GlanceModifier.width(9.dp))
+            contentAlignment = Alignment.TopStart,
+        ) {
+            Image(
+                provider = ImageProvider(if (item.done) R.drawable.ic_check_on else R.drawable.ic_check_off),
+                contentDescription = if (item.done) "Mark not done" else "Mark done",
+                modifier = GlanceModifier
+                    // Nudged down so the box sits on the text baseline rather than above it.
+                    .padding(top = 3.dp)
+                    .size(width = 22.dp, height = 17.dp),
+            )
+        }
         // Text: opens the small floating editor instead of toggling completion.
         Text(
             text = item.text,

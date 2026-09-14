@@ -590,9 +590,9 @@ private fun WidgetCard(
                 Spacer(Modifier.height(12.dp))
                 Text("Clock style", style = BitsText.Small)
                 Text(
-                    "Press and hold any style to try it on the preview.",
+                    "Tap to switch. Press and hold any style to try it on the preview.",
                     style = BitsText.Small.copy(color = BitsColors.Muted),
-                    modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+                    modifier = Modifier.padding(top = 2.dp, bottom = 10.dp),
                 )
                 ClockStyles.all.chunked(2).forEach { pair ->
                     Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -734,14 +734,16 @@ private fun ClockTile(
     onSelect: () -> Unit,
     onPreview: () -> Unit,
 ) {
+    // Styled like the theme tiles: a dark card, an accent border when chosen, and a small
+    // visual of the layout standing in for the theme swatches.
     Column(
         modifier
-            .clip(RoundedCornerShape(11.dp))
-            .background(if (selected) BitsColors.Amber.copy(alpha = 0.14f) else BitsColors.PanelBase)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF121A24))
             .border(
-                width = if (selected) 1.5.dp else 0.dp,
-                color = if (selected) BitsColors.Amber else Color.Transparent,
-                shape = RoundedCornerShape(11.dp),
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) BitsColors.Amber else BitsColors.Muted.copy(alpha = 0.2f),
+                shape = RoundedCornerShape(12.dp),
             )
             .combinedClickable(onClick = onSelect, onLongClick = onPreview)
             .padding(12.dp)
@@ -758,7 +760,74 @@ private fun ClockTile(
                 Icon(Icons.Filled.Check, contentDescription = null, tint = BitsColors.Amber, modifier = Modifier.size(14.dp))
             }
         }
-        Text(style.blurb, style = BitsText.Small.copy(color = BitsColors.Muted), modifier = Modifier.padding(top = 3.dp))
+        Spacer(Modifier.height(8.dp))
+        ClockShape(style.id, selected)
+    }
+}
+
+/**
+ * A tiny abstract picture of how each clock is laid out, filling the same role the colour
+ * swatches play on a theme tile.
+ */
+@Composable
+private fun ClockShape(styleId: String, selected: Boolean) {
+    val strong = if (selected) BitsColors.Amber else BitsColors.Ink.copy(alpha = 0.75f)
+    val faint = BitsColors.Muted.copy(alpha = 0.5f)
+
+    @Composable
+    fun bar(width: Float, height: Int, color: Color, modifier: Modifier = Modifier) {
+        Box(
+            modifier
+                .fillMaxWidth(width)
+                .height(height.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(color)
+        )
+    }
+
+    Column(
+        Modifier.fillMaxWidth().height(34.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        when (styleId) {
+            ClockStyle.COMPACT -> Row(verticalAlignment = Alignment.CenterVertically) {
+                bar(0.38f, 11, strong)
+                Spacer(Modifier.width(5.dp))
+                bar(0.45f, 5, faint)
+            }
+            ClockStyle.STACKED -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                bar(0.34f, 5, faint)
+                Spacer(Modifier.height(4.dp))
+                bar(0.5f, 13, strong)
+            }
+            ClockStyle.MONO -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    repeat(4) { bar(0.11f, 12, strong) }
+                }
+                Spacer(Modifier.height(4.dp))
+                bar(0.42f, 4, faint)
+            }
+            ClockStyle.BOLD -> Column(modifier = Modifier.fillMaxWidth()) {
+                bar(0.62f, 15, strong)
+                Spacer(Modifier.height(3.dp))
+                bar(0.4f, 4, faint)
+            }
+            ClockStyle.DOTTED -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    bar(0.4f, 12, strong)
+                    Spacer(Modifier.width(3.dp))
+                    bar(0.14f, 7, faint)
+                }
+                Spacer(Modifier.height(4.dp))
+                bar(0.46f, 4, faint)
+            }
+            // Minimal, and anything unrecognised: big time over a small date.
+            else -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                bar(0.5f, 14, strong)
+                Spacer(Modifier.height(4.dp))
+                bar(0.62f, 4, faint)
+            }
+        }
     }
 }
 
