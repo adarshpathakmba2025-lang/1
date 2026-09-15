@@ -63,6 +63,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import kotlinx.coroutines.launch
 import com.bits.app.data.BitsRepository
 import com.bits.app.data.WidgetSettings
+import com.bits.app.data.ProPlan
 import com.bits.app.data.WidgetTheme
 import com.bits.app.data.BitsState
 import com.bits.app.data.ClockStyle

@@ -2,6 +2,13 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.3.1
+
+Fixed a build failure: `SettingsScreen.kt` used `ProPlan` (for the subscription-plan
+selector) in three places without importing it. One missing import line, now added.
+Verified this time with a targeted grep for `ProPlan` across the full compiler output,
+not just the general error filter, so this exact class of miss can't slip through again.
+
 ## New in v1.3
 
 **Package name locked in:** `com.bits.todoandgames`. Permanent from here on.
