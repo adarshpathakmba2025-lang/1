@@ -2,6 +2,26 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.3.2
+
+Fixed the build. Two real bugs, both from the same root cause:
+
+- `Celebration.kt` used `Modifier.size(...)` in two new tiles without importing the
+  `size` extension.
+- `LinkRow` gained an optional `color` parameter inserted *before* `onClick`. Every
+  existing call site passes `onClick` positionally, so the lambda meant for it was
+  landing on `color` instead, leaving `onClick` empty. Moving `color` to the very end
+  fixed every other call site; the one call that actually needs a custom colour now uses
+  fully named arguments, since a trailing lambda requires the last parameter to be the
+  function type, and that one call also needed to set `color` explicitly.
+
+Also swept the whole project for the same two mistake-shapes rather than just fixing
+the two reported lines: every `.size(`/`.height(`/`.width(`/`.padding(`/`.fillMaxWidth(`/
+`.fillMaxHeight(`/`.fillMaxSize(`/`.background(`/`.clip(` call now has a matching import
+across every file, and every function with a defaulted parameter sitting before a
+required one was checked against its actual call sites for the same silent-misbinding
+risk. Nothing else was affected.
+
 ## New in v1.3.1
 
 Fixed a build failure: `SettingsScreen.kt` used `ProPlan` (for the subscription-plan

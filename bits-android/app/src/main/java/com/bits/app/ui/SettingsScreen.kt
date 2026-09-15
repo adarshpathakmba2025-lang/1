@@ -213,11 +213,15 @@ fun SettingsScreen(
 @Composable
 private fun CancelSubscriptionRow() {
     val context = LocalContext.current
+    // Fully named, on purpose: this is the one call site that needs a non-default
+    // colour, and naming every argument sidesteps any ambiguity about which
+    // positional slot the trailing lambda would otherwise bind to.
     LinkRow(
-        "Cancel membership",
-        "Opens Play Store subscription settings",
+        title = "Cancel membership",
+        subtitle = "Opens Play Store subscription settings",
         color = BitsColors.Danger,
-    ) { openSubscriptionManagement(context) }
+        onClick = { openSubscriptionManagement(context) },
+    )
 }
 
 @Composable
@@ -284,7 +288,10 @@ private fun ToggleRow(title: String, subtitle: String?, checked: Boolean, onChec
 }
 
 @Composable
-private fun LinkRow(title: String, subtitle: String?, color: Color = BitsColors.Ink, onClick: () -> Unit) {
+// color is placed last, after onClick, on purpose: several existing call sites
+    // pass onClick positionally (not as a trailing lambda), and an optional
+    // parameter sitting before a required one silently steals its argument.
+    private fun LinkRow(title: String, subtitle: String?, onClick: () -> Unit, color: Color = BitsColors.Ink) {
     Column(
         Modifier
             .fillMaxWidth()

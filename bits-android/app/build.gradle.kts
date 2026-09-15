@@ -12,8 +12,8 @@ android {
         applicationId = "com.bits.todoandgames"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "1.3.1"
+        versionCode = 17
+        versionName = "1.3.2"
     }
 
     // A fixed debug key, so each new build installs over the previous one
