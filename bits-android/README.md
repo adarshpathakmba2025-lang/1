@@ -2,6 +2,21 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.3.4
+
+Snake turns respond properly again. Two things I added in 1.1 were fighting each other:
+
+- The input buffer only applied a queued turn on the next tick, so a swipe could sit
+  unused for most of a tick - up to 260ms at low speed.
+- The glide animation stretched each move across that whole tick, so even a correctly
+  handled turn *looked* like it was creeping.
+
+The loop now polls in 8ms slices and lets a queued turn cut the wait short, dropping
+worst-case turn latency from 260ms to about 117ms (55ms at high speed). The glide now
+finishes in 55% of the tick, so motion reads crisp rather than floaty. A floor stops
+repeated swiping from cutting every tick short and racing the snake forward - the most it
+can ever be sped up is about 2x. The reversal protection from 1.1 is untouched.
+
 ## New in v1.3.3
 
 Fixed the LinkRow build failure properly. The root problem: `LinkRow` is called two ways -

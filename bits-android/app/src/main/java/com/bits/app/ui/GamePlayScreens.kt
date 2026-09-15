@@ -232,9 +232,26 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
         while (true) {
             // Speeds up gently as the snake grows, but never past a playable pace.
             val interval = (260L - latest.score * 6L).coerceAtLeast(110L)
-            tickLength = interval
             tickStart = System.currentTimeMillis()
-            delay(interval)
+
+            // Rather than sleeping the whole interval, poll in short slices so a queued
+            // turn can cut the wait short. Without this a swipe could sit unhandled for
+            // most of a tick, which is what made turning feel unresponsive.
+            // A turn may only cut the wait short once a decent part of the tick has run.
+            // Without that floor, swiping repeatedly would shorten every tick in a row and
+            // let the snake race forward far faster than its normal pace.
+            val reactFloor = maxOf(MIN_REACT, (interval * REACT_FLOOR_FRACTION).toLong())
+            var waited = 0L
+            while (waited < interval) {
+                delay(TICK_SLICE)
+                waited = System.currentTimeMillis() - tickStart
+                if (latest.pendingDirection != null && waited >= reactFloor) break
+            }
+
+            // The glide is measured against however long this tick actually ran, so a
+            // tick cut short by a turn animates over that shorter span instead of
+            // appearing to lag behind.
+            tickLength = waited.coerceAtLeast(MIN_REACT)
             previousBody = state.body
             state = Snake.step(state)
             if (latest.dead) break
@@ -250,8 +267,11 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
             if (state.dead) {
                 GameOverBanner("Game over") {
                     onScore(state.score)
-                    state = Snake.newGame()
-                    previousBody = state.body
+                    // Built into a local first: reading back through the delegated
+                    // `state` right after assigning it can't be smart-cast.
+                    val fresh = Snake.newGame()
+                    state = fresh
+                    previousBody = fresh.body
                 }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
@@ -283,7 +303,10 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
         ) {
             val cell = size.width / Snake.GRID
             val elapsed = frameNow - tickStart
-            val progress = if (tickLength <= 0L) 1f else (elapsed.toFloat() / tickLength).coerceIn(0f, 1f)
+            // Completing the slide in a fraction of the tick keeps the motion smooth but
+            // still snappy; stretching it across the whole tick is what felt sluggish.
+            val glideSpan = (tickLength * GLIDE_FRACTION).coerceAtLeast(1f)
+            val progress = (elapsed.toFloat() / glideSpan).coerceIn(0f, 1f)
 
             state.body.forEachIndexed { index, point ->
                 // A body can grow between ticks (after eating), so any segment with no
@@ -307,6 +330,24 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
 }
 
 private fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t
+
+/** How often the Snake loop checks whether a turn is waiting. */
+private const val TICK_SLICE = 8L
+
+/**
+ * The shortest a tick may be cut to when a turn is queued. Low enough that a swipe feels
+ * immediate, high enough that frantic swiping can't race the snake forward.
+ */
+private const val MIN_REACT = 55L
+
+/** Portion of a tick the glide animation occupies. */
+private const val GLIDE_FRACTION = 0.55f
+
+/**
+ * Smallest share of a tick that must elapse before a queued turn can cut it short. Caps
+ * how much faster than normal the snake can ever be made to move by swiping constantly.
+ */
+private const val REACT_FLOOR_FRACTION = 0.45f
 
 /* ---------------------------- Memory match ---------------------------- */
 
