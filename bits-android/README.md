@@ -2,6 +2,18 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.3.3
+
+Fixed the LinkRow build failure properly. The root problem: `LinkRow` is called two ways -
+some call sites pass `onClick` positionally, others use a trailing lambda. A trailing
+lambda always binds to the LAST parameter, so no position for the optional `color`
+parameter satisfies both styles at once. v1.3.2 moved `color` last, which fixed the
+positional callers and broke all five trailing-lambda ones.
+
+The fix: `onClick` is last (so trailing lambdas work, which is the common style), and the
+two call sites that passed it positionally now name it explicitly. Every call site was
+checked individually rather than assuming.
+
 ## New in v1.3.2
 
 Fixed the build. Two real bugs, both from the same root cause:

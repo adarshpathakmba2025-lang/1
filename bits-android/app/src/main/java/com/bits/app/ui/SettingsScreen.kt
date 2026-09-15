@@ -191,11 +191,11 @@ fun SettingsScreen(
 
             SectionLabel("About")
             Card {
-                LinkRow("Replay the tour", "See what Bits can do", onReplayTour)
+                LinkRow("Replay the tour", "See what Bits can do", onClick = onReplayTour)
                 Divider()
                 RateRow()
                 Divider()
-                LinkRow("Restore purchases", "Already bought Pro? Bring it back", onRestorePurchases)
+                LinkRow("Restore purchases", "Already bought Pro? Bring it back", onClick = onRestorePurchases)
                 if (state.preferences.proPlan == ProPlan.MONTHLY) {
                     Divider()
                     CancelSubscriptionRow()
@@ -288,10 +288,11 @@ private fun ToggleRow(title: String, subtitle: String?, checked: Boolean, onChec
 }
 
 @Composable
-// color is placed last, after onClick, on purpose: several existing call sites
-    // pass onClick positionally (not as a trailing lambda), and an optional
-    // parameter sitting before a required one silently steals its argument.
-    private fun LinkRow(title: String, subtitle: String?, onClick: () -> Unit, color: Color = BitsColors.Ink) {
+// onClick stays LAST so the common trailing-lambda call style binds to it.
+// color sits before it with a default, which means any call passing onClick
+// positionally would bind to color instead - so those few call sites use a
+// trailing lambda or a named argument instead of a bare positional one.
+private fun LinkRow(title: String, subtitle: String?, color: Color = BitsColors.Ink, onClick: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
