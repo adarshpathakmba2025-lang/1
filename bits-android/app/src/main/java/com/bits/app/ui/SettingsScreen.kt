@@ -57,6 +57,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.bits.app.BuildConfig
 import com.bits.app.R
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableIntStateOf
@@ -161,16 +162,8 @@ fun SettingsScreen(
         ) {
             ProBanner(state, onOpenPaywall)
 
-            WidgetListsSection(
-                state = state,
-                repository = repository,
-                onOpenPaywall = onOpenPaywall,
-                clockPreview = clockPreview,
-                onPreviewClock = { clockPreview = it },
-            )
-
             SectionLabel("Lists")
-            Card {
+            SettingsCard {
                 ToggleRow(
                     title = "Add new items at the bottom",
                     subtitle = "Off means new items go to the top",
@@ -187,10 +180,10 @@ fun SettingsScreen(
             }
 
             SectionLabel("Your data")
-            Card { BackupRows(repository) }
+            SettingsCard { BackupRows(repository) }
 
             SectionLabel("About")
-            Card {
+            SettingsCard {
                 LinkRow("Replay the tour", "See what Bits can do", onClick = onReplayTour)
                 Divider()
                 RateRow()
@@ -204,7 +197,11 @@ fun SettingsScreen(
                 VersionRow()
             }
 
-            DeveloperCard(state, repository)
+            // Developer-only. Gated on the debug build so a release APK can never expose
+            // the Simulate Pro switch, which would hand every paid feature away for free.
+            if (BuildConfig.DEBUG) {
+                DeveloperCard(state, repository)
+            }
         }
     }
 }
@@ -230,7 +227,7 @@ private fun RateRow() {
     LinkRow("Rate Bits", "Tell us what to improve \u2014 every review is read") { openStoreListing(context) }
 }
 @Composable
-private fun SectionLabel(text: String) {
+fun SectionLabel(text: String) {
     Text(
         text = text.uppercase(),
         style = BitsText.Small.copy(color = BitsColors.Muted),
@@ -239,7 +236,7 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun Card(content: @Composable ColumnScope.() -> Unit) {
+fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier
             .padding(bottom = 8.dp)
@@ -252,7 +249,7 @@ private fun Card(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun Divider() {
+fun Divider() {
     Box(
         Modifier
             .padding(vertical = 12.dp)
@@ -325,7 +322,7 @@ private fun AddWidgetButton() {
 }
 
 @Composable
-private fun ProBanner(state: BitsState, onOpenPaywall: () -> Unit) {
+fun ProBanner(state: BitsState, onOpenPaywall: () -> Unit) {
     val isPro = state.preferences.isPro
     Row(
         Modifier
@@ -364,7 +361,7 @@ private fun ProBanner(state: BitsState, onOpenPaywall: () -> Unit) {
  * Pro users get one card per placed widget, each independently customisable.
  */
 @Composable
-private fun WidgetListsSection(
+fun WidgetListsSection(
     state: BitsState,
     repository: BitsRepository,
     onOpenPaywall: () -> Unit,
@@ -392,7 +389,7 @@ private fun WidgetListsSection(
     )
 
     when {
-        ids.isEmpty() -> Card {
+        ids.isEmpty() -> SettingsCard {
             Text("No widget on your home screen yet", style = BitsText.Body)
             Text(
                 "Long-press an empty spot, tap Widgets, find Bits.",
@@ -415,7 +412,7 @@ private fun WidgetListsSection(
                 onPreviewClock = onPreviewClock,
                 appWidgetId = null,
             )
-            Card {
+            SettingsCard {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Want them to differ?", style = BitsText.Body)
@@ -476,6 +473,8 @@ private fun WidgetCard(
     var expanded by remember { mutableStateOf(appWidgetId == null) }
     var opacity by remember(settings.opacity) { mutableFloatStateOf(settings.opacity) }
     var themePreview by remember { mutableStateOf<String?>(null) }
+    // Null means "show the real setting"; true/false previews the look without saving it.
+    var pixelPreview by remember { mutableStateOf<Boolean?>(null) }
 
     // Edits land on the shared settings or on this widget's own board.
     fun apply(transform: (WidgetSettings) -> WidgetSettings) {
@@ -485,7 +484,7 @@ private fun WidgetCard(
         }
     }
 
-    Card {
+    SettingsCard {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -511,7 +510,7 @@ private fun WidgetCard(
             opacity = opacity,
             themeOverrideId = themePreview,
             clockOverrideId = clockPreview,
-            settings = settings,
+            settings = if (pixelPreview == null) settings else settings.copy(pixelHeadings = pixelPreview == true),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(260.dp)
@@ -527,7 +526,7 @@ private fun WidgetCard(
             },
         )
 
-        val previewing = themePreview ?: clockPreview
+        val previewing: Any? = themePreview ?: clockPreview ?: pixelPreview
         if (previewing != null) {
             Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -537,6 +536,7 @@ private fun WidgetCard(
                 )
                 TextAction("Done", BitsColors.Muted) {
                     themePreview = null
+                    pixelPreview = null
                     onPreviewClock(null)
                 }
                 // Copied into locals: `themePreview` is a delegated property, which
@@ -545,7 +545,8 @@ private fun WidgetCard(
                 val previewedClock = clockPreview
                 val themeLocked = previewedTheme != null && !state.canUseTheme(previewedTheme)
                 val clockLocked = previewedClock != null && !state.canUseClockStyle(previewedClock)
-                if (themeLocked || clockLocked) {
+                val pixelLocked = pixelPreview != null && !state.canUsePixelHeadings
+                if (themeLocked || clockLocked || pixelLocked) {
                     FilledAction("Unlock", onClick = onOpenPaywall)
                 }
             }
@@ -698,11 +699,77 @@ private fun WidgetCard(
                 }
             }
 
+            Divider()
+            PixelHeadingsRow(
+                enabled = settings.pixelHeadings,
+                unlocked = state.canUsePixelHeadings,
+                onToggle = {
+                    if (!state.canUsePixelHeadings) onOpenPaywall()
+                    else {
+                        pixelPreview = null
+                        apply { it.copy(pixelHeadings = !settings.pixelHeadings) }
+                        jumpToPreview()
+                    }
+                },
+                onPreview = {
+                    pixelPreview = !settings.pixelHeadings
+                    jumpToPreview()
+                },
+            )
+
             if (appWidgetId != null && state.hasOwnBoard(appWidgetId)) {
                 TextAction("Reset this widget to main settings", BitsColors.Muted) {
                     repository.edit { it.resetBoard(appWidgetId) }
                 }
             }
+        }
+    }
+}
+
+/**
+ * The pixel-headings switch, drawn in the pixel face itself so the control previews the
+ * thing it turns on. Tap toggles it; press and hold previews it without saving, matching
+ * how themes and clock styles behave.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun PixelHeadingsRow(
+    enabled: Boolean,
+    unlocked: Boolean,
+    onToggle: () -> Unit,
+    onPreview: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (enabled) BitsColors.Amber.copy(alpha = 0.14f) else BitsColors.PanelBase)
+            .border(
+                width = if (enabled) 1.5.dp else 1.dp,
+                color = if (enabled) BitsColors.Amber else BitsColors.Muted.copy(alpha = 0.2f),
+                shape = RoundedCornerShape(12.dp),
+            )
+            .combinedClickable(onClick = onToggle, onLongClick = onPreview)
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                "PIXEL HEADINGS",
+                style = BitsText.ChipLabel.copy(
+                    color = if (!unlocked) BitsColors.Muted else if (enabled) BitsColors.Amber else BitsColors.Ink,
+                ),
+            )
+            Text(
+                "Category names on the widget, in the arcade face.",
+                style = BitsText.Small.copy(color = BitsColors.Muted),
+                modifier = Modifier.padding(top = 5.dp),
+            )
+        }
+        if (!unlocked) {
+            Image(painterResource(R.drawable.ic_lock_pixel), contentDescription = "Pro", modifier = Modifier.size(14.dp))
+        } else if (enabled) {
+            Icon(Icons.Filled.Check, contentDescription = null, tint = BitsColors.Amber, modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -930,7 +997,7 @@ private fun BackupRows(repository: BitsRepository) {
 private fun DeveloperCard(state: BitsState, repository: BitsRepository) {
     var confirmReset by remember { mutableStateOf(false) }
     SectionLabel("Developer \u2014 remove before publishing")
-    Card {
+    SettingsCard {
         Text("Simulate Pro", style = BitsText.Body)
         Text(
             "Local flag only, no real purchase. Pick a plan so the cancel-membership flow can be tested.",

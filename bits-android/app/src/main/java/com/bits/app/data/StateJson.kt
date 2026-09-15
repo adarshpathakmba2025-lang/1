@@ -32,7 +32,7 @@ internal object StateJson {
 
         val root = JSONObject()
             .put("app", "bits")
-            .put("version", 11)
+            .put("version", 12)
             .put("lastRollover", state.lastRollover)
             .put("categories", categories)
             .put("items", items)
@@ -42,6 +42,7 @@ internal object StateJson {
                     .put("opacity", state.widget.opacity.toDouble())
                     .put("showClock", state.widget.showClock)
                     .put("hiddenCategoryIds", JSONArray(state.widget.hiddenCategoryIds.toList()))
+                    .put("pixelHeadings", state.widget.pixelHeadings)
             )
             .put("boards", JSONObject().also { boards ->
                 state.boards.forEach { (appWidgetId, settings) ->
@@ -53,6 +54,7 @@ internal object StateJson {
                             .put("hiddenCategoryIds", JSONArray(settings.hiddenCategoryIds.toList()))
                             .put("themeIdOverride", settings.themeIdOverride)
                             .put("clockStyleOverride", settings.clockStyleOverride)
+                            .put("pixelHeadings", settings.pixelHeadings)
                     )
                 }
             })
@@ -72,6 +74,7 @@ internal object StateJson {
                     .put("bonusClockIds", JSONArray(state.preferences.bonusClockIds.toList()))
                     .put("easterEggAllowance", state.preferences.easterEggAllowance)
                     .put("easterEggClaims", state.preferences.easterEggClaims)
+                    .put("bonusPixelHeadings", state.preferences.bonusPixelHeadings)
                     .put("installedAt", state.preferences.installedAt)
                     .put("anniversaryGiven", state.preferences.anniversaryGiven)
                     .put("wordleDay", state.preferences.wordleDay)
@@ -133,6 +136,7 @@ internal object StateJson {
                 opacity = widgetJson.optDouble("opacity", WidgetSettings.Default.opacity.toDouble()).toFloat(),
                 showClock = widgetJson.optBoolean("showClock", true),
                 hiddenCategoryIds = (0 until hidden.length()).map { hidden.getString(it) }.toSet(),
+                pixelHeadings = widgetJson.optBoolean("pixelHeadings", false),
             )
         }
 
@@ -165,6 +169,7 @@ internal object StateJson {
                 hiddenCategoryIds = (0 until hidden.length()).map { hidden.getString(it) }.toSet(),
                 themeIdOverride = board.optString("themeIdOverride", ""),
                 clockStyleOverride = board.optString("clockStyleOverride", ""),
+                pixelHeadings = board.optBoolean("pixelHeadings", false),
             )
         }
         return result
@@ -202,6 +207,7 @@ internal object StateJson {
             bonusClockIds = stringSet(json, "bonusClockIds", json.optString("bonusClockId", "")),
             // Older files stored a single used-flag; one claim taken means one set spent.
             easterEggAllowance = json.optInt("easterEggAllowance", 1),
+            bonusPixelHeadings = json.optBoolean("bonusPixelHeadings", false),
             easterEggClaims = json.optInt(
                 "easterEggClaims",
                 if (json.optBoolean("easterEggUsed", false)) 1 else 0,

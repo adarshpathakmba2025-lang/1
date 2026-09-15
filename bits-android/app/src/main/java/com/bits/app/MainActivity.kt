@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
             categoryId != null -> launchRequest.value = LaunchRequest.OpenCategory(categoryId)
             intent.getBooleanExtra(Launch.EXTRA_SETTINGS, false) -> launchRequest.value = LaunchRequest.OpenSettings
             intent.getBooleanExtra(Launch.EXTRA_GAMES, false) -> launchRequest.value = LaunchRequest.OpenGames
+            intent.getBooleanExtra(Launch.EXTRA_CUSTOMIZE, false) -> launchRequest.value = LaunchRequest.OpenCustomize
             intent.getBooleanExtra(Launch.EXTRA_HOME, false) -> launchRequest.value = LaunchRequest.OpenHome
         }
     }

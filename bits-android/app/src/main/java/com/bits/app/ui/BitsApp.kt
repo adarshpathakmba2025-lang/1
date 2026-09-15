@@ -57,9 +57,10 @@ sealed interface LaunchRequest {
     data object OpenSettings : LaunchRequest
     data object OpenGames : LaunchRequest
     data object OpenHome : LaunchRequest
+    data object OpenCustomize : LaunchRequest
 }
 
-private enum class Screen { Onboarding, Home, Settings, Paywall, GamesHub, Playing }
+private enum class Screen { Onboarding, Home, Settings, Customize, Paywall, GamesHub, Playing }
 
 @Composable
 fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
@@ -69,6 +70,9 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
     val targets = remember { TutorialTargets() }
 
     var screen by rememberSaveable { mutableStateOf(Screen.Home) }
+    // Where the Pro page was opened from, so backing out of it returns there instead of
+    // always dumping the user in Settings.
+    var paywallOrigin by rememberSaveable { mutableStateOf(Screen.Settings) }
     var selectedCategoryId by rememberSaveable { mutableStateOf(TODAY_ID) }
     var playing by remember { mutableStateOf<GameId?>(null) }
     var showFounder by remember { mutableStateOf(false) }
@@ -76,7 +80,9 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
     // locked item. After it's been seen, locked things open the Pro page directly.
     var founderShownThisSession by rememberSaveable { mutableStateOf(false) }
 
+    // Remembers which screen asked for Pro, so backing out returns there.
     val openPro: () -> Unit = {
+        paywallOrigin = if (screen == Screen.Paywall) paywallOrigin else screen
         if (founderShownThisSession) {
             screen = Screen.Paywall
         } else {
@@ -133,14 +139,17 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
             LaunchRequest.OpenSettings -> screen = Screen.Settings
             LaunchRequest.OpenGames -> screen = Screen.GamesHub
             LaunchRequest.OpenHome -> screen = Screen.Home
+            LaunchRequest.OpenCustomize -> screen = Screen.Customize
             null -> return@LaunchedEffect
         }
         onLaunchHandled()
     }
 
     BackHandler(enabled = screen == Screen.Playing) { playing = null; screen = Screen.GamesHub }
-    BackHandler(enabled = screen == Screen.Paywall) { screen = Screen.Settings }
-    BackHandler(enabled = screen == Screen.Settings || screen == Screen.GamesHub) { screen = Screen.Home }
+    BackHandler(enabled = screen == Screen.Paywall) { screen = paywallOrigin }
+    BackHandler(
+        enabled = screen == Screen.Settings || screen == Screen.GamesHub || screen == Screen.Customize
+    ) { screen = Screen.Home }
 
     val current = state
 
@@ -182,6 +191,7 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                             onSelectCategory = { selectedCategoryId = it },
                             onOpenSettings = { screen = Screen.Settings },
                             onOpenGames = { screen = Screen.GamesHub },
+                            onOpenCustomize = { screen = Screen.Customize },
                             onTitleTap = {
                                 if (current.easterEggAvailable) {
                                     tapCount += 1
@@ -214,9 +224,16 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                             },
                         )
 
+                        Screen.Customize -> CustomizeScreen(
+                            state = current,
+                            repository = repository,
+                            onBack = { screen = Screen.Home },
+                            onOpenPaywall = openPro,
+                        )
+
                         Screen.Paywall -> PaywallScreen(
                             state = current,
-                            onBack = { screen = Screen.Settings },
+                            onBack = { screen = paywallOrigin },
                             onPurchase = { toast = "Payments aren't switched on yet." },
                         )
 

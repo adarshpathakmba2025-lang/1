@@ -2,6 +2,46 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.4
+
+**The Edit button is now a full page.** Everything that used to be the "Widget lists"
+section in Settings now lives here, opened from Edit on the home page or the Customise
+icon on the widget. Same behaviour, same auto-save, plus what was missing before:
+
+- **Rename and reorder your lists.** Today and Tomorrow are marked Fixed, since renaming
+  or moving them would break the midnight rollover.
+- **Go Pro** banner at the top, using the same component as Settings so it carries the
+  identical founder pitch.
+- Add and delete lists, with an inline confirm before anything is removed.
+
+**Pixel headings.** A toggle under the themes that draws that widget's category names in
+the arcade face. Glance can't put a custom font on its own text, so these headings render
+through a RemoteViews layout - the same trick the clock styles already use - which can
+load the real Press Start 2P font, with the colour pushed in so it still follows the
+widget's theme. Per widget, so two widgets can differ. Pro, and included in the easter
+egg reward. Tap to set, press and hold to preview, same as themes and clocks.
+
+**The widget's bottom-right icon** is now a Customise glyph opening that Edit page,
+rather than a Settings gear.
+
+**Back from the Pro page** now returns wherever you opened it from. It used to always
+drop you in Settings, even if you'd come from the games hub.
+
+**Tour** updated for the new Edit page, and the Settings step now reads "Backups, the
+tour, and all that boring complicated stuff lives in here."
+
+### Publishing preparation
+
+- `compileSdk`/`targetSdk` raised to 36 (Android 16), which Google now requires for new
+  submissions.
+- A release `signingConfig` that reads from `keystore.properties`. That file is
+  gitignored and must never be committed.
+- R8 shrinking and obfuscation enabled for release, with rules covering the
+  manifest-declared widget and activity classes.
+- The Developer / Simulate Pro section is now behind `BuildConfig.DEBUG`, so a release
+  build cannot expose the switch that unlocks every paid feature.
+- Play Billing dependency added, ready for wiring up.
+
 ## New in v1.3.5
 
 Removed the Snake glide animation. It drew each segment sliding from its previous cell to
@@ -173,7 +213,7 @@ workaround, and it opens over the home screen without ever showing the full app.
 ## Project layout
 
 - `data/` model, midnight move, storage, backups, themes, clocks, boards, hints, ordering
-- `games/` pure game rules, unit-tested (478 checks pass)
+- `games/` pure game rules, unit-tested (505 checks pass)
 - `widget/` the home screen widget (Jetpack Glance)
 - `time/` wakes the app after midnight, on reboot, on time zone changes
 - `ui/` screens, onboarding, retro games, Pro page, tour, armed delete

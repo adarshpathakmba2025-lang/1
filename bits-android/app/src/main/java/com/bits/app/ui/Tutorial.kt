@@ -142,7 +142,7 @@ private val tourSteps = listOf(
     ),
     TourStep(
         title = plain("Make it yours"),
-        body = "Tap Edit to add, rename, delete, hide or reorder categories. A dimmed name means it\u2019s off your widget.",
+        body = "Tap Edit for everything about your lists and widgets \u2014 add, rename, reorder or remove lists, and change each widget\u2019s theme, clock and look.",
         target = TutorialTarget.EDIT,
     ),
     TourStep(
@@ -161,8 +161,8 @@ private val tourSteps = listOf(
         target = TutorialTarget.GAMES,
     ),
     TourStep(
-        title = plain("Customize"),
-        body = "Change the way your widget looks and more from the settings.",
+        title = plain("The other stuff"),
+        body = "Backups, the tour, and all that boring complicated stuff lives in here.",
         target = TutorialTarget.SETTINGS,
     ),
 )

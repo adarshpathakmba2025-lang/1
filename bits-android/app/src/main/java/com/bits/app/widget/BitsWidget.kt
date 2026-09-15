@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.toArgb
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
@@ -129,7 +130,14 @@ private fun WidgetBody(context: Context, state: BitsState, appWidgetId: Int) {
         LazyColumn(modifier = GlanceModifier.defaultWeight().fillMaxWidth()) {
             items(lines) { line ->
                 when (line) {
-                    is WidgetLine.Header -> HeaderLine(context, line.category, line.first, accent, appWidgetId)
+                    is WidgetLine.Header -> HeaderLine(
+                        context = context,
+                        category = line.category,
+                        first = line.first,
+                        accent = accent,
+                        appWidgetId = appWidgetId,
+                        pixel = settings.pixelHeadings && state.canUsePixelHeadings,
+                    )
                     is WidgetLine.Entry -> EntryLine(context, line.item, ink, done, appWidgetId)
                     is WidgetLine.Hint -> Text(
                         text = "Nothing to show. In the app, tap Edit and tap a category name to bring it back.",
@@ -172,29 +180,51 @@ private fun WidgetBody(context: Context, state: BitsState, appWidgetId: Int) {
                     .padding(vertical = 10.dp, horizontal = 8.dp)
                     .clickable(actionStartActivity(Launch.app(context))),
             )
+            // Customise, not settings: it opens the page that actually governs how this
+            // widget looks and which lists it carries.
             Image(
-                provider = ImageProvider(R.drawable.ic_tune),
-                contentDescription = "Bits settings",
+                provider = ImageProvider(R.drawable.ic_customize_pixel),
+                contentDescription = "Customise this widget",
                 modifier = GlanceModifier
                     .size(FooterIcon)
                     .padding(FooterInset)
-                    .clickable(actionStartActivity(Launch.settings(context))),
+                    .clickable(actionStartActivity(Launch.customize(context))),
             )
         }
     }
 }
 
 @Composable
-private fun HeaderLine(context: Context, category: Category, first: Boolean, accent: Color, appWidgetId: Int) {
+private fun HeaderLine(
+    context: Context,
+    category: Category,
+    first: Boolean,
+    accent: Color,
+    appWidgetId: Int,
+    pixel: Boolean,
+) {
     // Tapping a heading opens the floating "add to this list" card rather than the whole app.
-    Text(
-        text = category.name.uppercase(),
-        style = TextStyle(color = ColorProvider(accent), fontSize = 16.sp, fontWeight = FontWeight.Bold),
-        modifier = GlanceModifier
-            .fillMaxWidth()
-            .padding(top = if (first) 0.dp else 15.dp, bottom = 5.dp, end = 14.dp)
-            .clickable(actionStartActivity(Launch.quickAdd(context, category.id, appWidgetId))),
-    )
+    val tap = GlanceModifier
+        .fillMaxWidth()
+        .padding(top = if (first) 0.dp else 15.dp, bottom = 5.dp, end = 14.dp)
+        .clickable(actionStartActivity(Launch.quickAdd(context, category.id, appWidgetId)))
+
+    if (pixel) {
+        // Rendered through RemoteViews so the real pixel font can be applied; Glance's
+        // own Text is limited to the system faces. The tint is pushed in from here so
+        // the heading still follows the widget's theme.
+        val views = RemoteViews(context.packageName, R.layout.widget_heading_pixel).apply {
+            setTextViewText(R.id.pixel_heading, category.name.uppercase())
+            setTextColor(R.id.pixel_heading, accent.toArgb())
+        }
+        AndroidRemoteViews(remoteViews = views, modifier = tap)
+    } else {
+        Text(
+            text = category.name.uppercase(),
+            style = TextStyle(color = ColorProvider(accent), fontSize = 16.sp, fontWeight = FontWeight.Bold),
+            modifier = tap,
+        )
+    }
 }
 
 @Composable

@@ -10,6 +10,7 @@ object Launch {
     const val EXTRA_SETTINGS = "com.bits.app.extra.SETTINGS"
     const val EXTRA_GAMES = "com.bits.app.extra.GAMES"
     const val EXTRA_HOME = "com.bits.app.extra.HOME"
+    const val EXTRA_CUSTOMIZE = "com.bits.app.extra.CUSTOMIZE"
     const val EXTRA_ITEM_ID = "com.bits.app.extra.ITEM_ID"
     const val EXTRA_WIDGET_ID = "com.bits.app.extra.WIDGET_ID"
 
@@ -32,6 +33,11 @@ object Launch {
     fun games(context: Context): Intent =
         base(context, "bits://games")
             .putExtra(EXTRA_GAMES, true)
+
+    /** Opens the app straight on the Customise page, which governs how widgets look. */
+    fun customize(context: Context): Intent =
+        base(context, "bits://customize")
+            .putExtra(EXTRA_CUSTOMIZE, true)
 
     /** Opens the small floating card for editing one item, without launching the full app. */
     fun quickEdit(context: Context, itemId: String, appWidgetId: Int): Intent =

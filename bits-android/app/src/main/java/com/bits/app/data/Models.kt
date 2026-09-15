@@ -39,6 +39,12 @@ data class WidgetSettings(
     /** Empty means "use whatever the app-wide theme is". Only Pro boards set this. */
     val themeIdOverride: String = "",
     val clockStyleOverride: String = "",
+    /**
+     * Draws this widget's category headings in the pixel face. Pro, or unlocked through
+     * the easter egg. Per widget like the other looks, so two widgets can differ.
+     * Defaulted, so every existing construction site keeps working untouched.
+     */
+    val pixelHeadings: Boolean = false,
 ) {
     companion object {
         val Default = WidgetSettings(opacity = 0.72f, showClock = true, hiddenCategoryIds = emptySet())
@@ -81,6 +87,8 @@ data class Preferences(
      */
     val easterEggAllowance: Int,
     val easterEggClaims: Int,
+    /** The pixel-heading look, if it came from the easter egg rather than Pro. */
+    val bonusPixelHeadings: Boolean,
     /** Set once the user has been walked through placing the widget on their home screen. */
     val onboardingDone: Boolean,
     /** When the app first ran, for the thirty-day thank-you. Zero until first recorded. */
@@ -116,6 +124,7 @@ data class Preferences(
             bonusClockIds = emptySet(),
             easterEggAllowance = 1,
             easterEggClaims = 0,
+            bonusPixelHeadings = false,
             onboardingDone = false,
             installedAt = 0L,
             anniversaryGiven = false,
@@ -185,6 +194,10 @@ data class BitsState(
 
     fun canUseClockStyle(styleId: String): Boolean =
         ClockStyles.find(styleId).free || preferences.isPro || styleId in preferences.bonusClockIds
+
+    /** The pixel-heading look: Pro, or claimed through the easter egg. */
+    val canUsePixelHeadings: Boolean
+        get() = preferences.isPro || preferences.bonusPixelHeadings
 
     /** Games are identified by the keys in the UI's GameId list. */
     fun canPlayGame(gameId: String, free: Boolean): Boolean =

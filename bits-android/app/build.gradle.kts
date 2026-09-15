@@ -6,14 +6,14 @@ plugins {
 
 android {
     namespace = "com.bits.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.bits.todoandgames"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 20
-        versionName = "1.3.5"
+        targetSdk = 36
+        versionCode = 21
+        versionName = "1.4.0"
     }
 
     // A fixed debug key, so each new build installs over the previous one
@@ -25,11 +25,41 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+
+        // Release signing details live in keystore.properties, which is gitignored and
+        // never committed. If that file is absent (for example on a machine that only
+        // builds debug), the release config is simply left unconfigured rather than
+        // failing the whole build.
+        create("release") {
+            val keystoreProperties = java.util.Properties()
+            val keystorePropertiesFile = rootProject.file("keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("debug")
+            // Deliberately NO applicationIdSuffix: adding one would make debug builds
+            // install as a separate app, and the lists in the existing install would
+            // appear to vanish.
+        }
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            // R8 shrinks and obfuscates. Bits has no reflection-based code, so the
+            // default rules plus the Compose/Glance consumer rules are enough.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 
@@ -44,6 +74,8 @@ android {
 
     buildFeatures {
         compose = true
+        // Needed so BuildConfig.DEBUG can gate the developer-only settings.
+        buildConfig = true
     }
 }
 
@@ -70,4 +102,7 @@ dependencies {
     implementation("sh.calvin.reorderable:reorderable:2.4.0")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+
+    // Google Play Billing, for the one-time Lifetime purchase and the monthly plan.
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
 }

@@ -103,27 +103,25 @@ fun HomeScreen(
     onSelectCategory: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGames: () -> Unit,
+    onOpenCustomize: () -> Unit,
     onTitleTap: () -> Unit,
     onHiddenCategory: () -> Unit,
     tutorialActive: Boolean,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    var managing by rememberSaveable { mutableStateOf(false) }
     var quickAddCategoryId by remember { mutableStateOf<String?>(null) }
     val categories = state.sortedCategories
     val selected = categories.firstOrNull { it.id == selectedCategoryId } ?: categories.first()
     val selectedIndex = categories.indexOfFirst { it.id == selected.id }.coerceAtLeast(0)
 
     // Leaving Edit with the back button counts as Done rather than closing the app.
-    BackHandler(enabled = managing) { managing = false }
     // Backing out of search clears it first.
-    BackHandler(enabled = !managing && query.isNotBlank()) { query = "" }
+    BackHandler(enabled = query.isNotBlank()) { query = "" }
 
     // The tour always starts from a clean home page.
     LaunchedEffect(tutorialActive) {
         if (tutorialActive) {
             query = ""
-            managing = false
         }
     }
 
@@ -183,15 +181,13 @@ fun HomeScreen(
         CategoryChips(
             categories = categories,
             selectedId = selected.id,
-            managing = managing,
             onSelect = { id ->
-                managing = false
                 query = ""
                 onSelectCategory(id)
             },
-            onToggleManage = {
-                managing = !managing
+            onOpenEdit = {
                 query = ""
+                onOpenCustomize()
             },
         )
 
@@ -224,15 +220,8 @@ fun HomeScreen(
                     onToggle = { id -> repository.edit { it.toggleItem(id) } },
                     onOpenCategory = { id ->
                         query = ""
-                        managing = false
-                        onSelectCategory(id)
+                                    onSelectCategory(id)
                     },
-                )
-
-                managing -> ManageCategories(
-                    state = state,
-                    repository = repository,
-                    onHiddenCategory = onHiddenCategory,
                 )
 
                 else -> key(selected.id) {
@@ -314,9 +303,8 @@ private fun PixelGlyph(glyph: String, tint: Color) {
 private fun CategoryChips(
     categories: List<Category>,
     selectedId: String,
-    managing: Boolean,
     onSelect: (String) -> Unit,
-    onToggleManage: () -> Unit,
+    onOpenEdit: () -> Unit,
 ) {
     val rowState = rememberLazyListState()
     // Keep the highlighted chip on screen as the user swipes through categories.
@@ -335,7 +323,7 @@ private fun CategoryChips(
             items(categories, key = { it.id }) { category ->
                 Chip(
                     text = category.name,
-                    active = !managing && category.id == selectedId,
+                    active = category.id == selectedId,
                     subtle = false,
                     onClick = { onSelect(category.id) },
                 )
@@ -344,10 +332,10 @@ private fun CategoryChips(
         Spacer(Modifier.width(6.dp))
         // Edit sits outside the scrolling row so it's always reachable, however many categories there are.
         Chip(
-            text = if (managing) "Done" else "Edit",
-            active = managing,
+            text = "Edit",
+            active = false,
             subtle = true,
-            onClick = onToggleManage,
+            onClick = onOpenEdit,
             modifier = Modifier.tutorialTarget(TutorialTarget.EDIT),
         )
     }
@@ -672,169 +660,6 @@ private fun EditField(
         }
     }
 }
-
-@Composable
-private fun ManageCategories(state: BitsState, repository: BitsRepository, onHiddenCategory: () -> Unit) {
-    val categories = state.sortedCategories
-    val listState = rememberLazyListState()
-    var local by remember { mutableStateOf(categories) }
-    var dragging by remember { mutableStateOf(false) }
-    var renamingId by remember { mutableStateOf<String?>(null) }
-    var confirmDeleteId by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(categories) {
-        if (!dragging) local = categories
-    }
-
-    val reorderState = rememberReorderableLazyListState(listState) { from, to ->
-        val fromIndex = local.indexOfFirst { it.id == from.key }
-        val toIndex = local.indexOfFirst { it.id == to.key }
-        if (fromIndex >= 0 && toIndex >= 0) {
-            local = local.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
-        }
-    }
-
-    Column(Modifier.fillMaxSize()) {
-        Text(
-            text = "Categories",
-            style = BitsText.Title,
-            modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 18.dp),
-        )
-        Text(
-            text = "Tap a name to dim it and hide it from your widget. Drag to reorder. Today and Tomorrow are permanent.",
-            style = BitsText.Small,
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
-        )
-
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
-        ) {
-            items(local, key = { it.id }) { category ->
-                ReorderableItem(reorderState, key = category.id) { isDragging ->
-                    val count = state.items.count { it.categoryId == category.id }
-                    val shown = state.isShownOnWidget(category.id)
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isDragging) BitsColors.DragHighlight else Color.Transparent)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (renamingId == category.id) {
-                                RenameField(
-                                    initial = category.name,
-                                    onCommit = { name ->
-                                        renamingId = null
-                                        if (name.isNotBlank() && name != category.name) {
-                                            repository.edit { s -> s.renameCategory(category.id, name) }
-                                        }
-                                    },
-                                    modifier = Modifier.weight(1f).padding(start = 12.dp),
-                                )
-                            } else {
-                                Row(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable(
-                                            onClickLabel = if (shown) "Hide from widget" else "Show on widget",
-                                        ) {
-                                            repository.edit { s -> s.setShownOnWidget(category.id, !shown) }
-                                            if (shown) onHiddenCategory()
-                                        }
-                                        .padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = category.name,
-                                        style = if (shown) BitsText.Body
-                                        else BitsText.Body.copy(color = BitsColors.Muted.copy(alpha = 0.5f)),
-                                    )
-                                }
-                                if (isSystemCategory(category.id)) {
-                                    // Invisible spacer that keeps rows lined up with the ones that have Rename/Delete.
-                                    Row(Modifier.alpha(0f).clearAndSetSemantics {}) {
-                                        ActionLabel("Rename")
-                                        ActionLabel("Delete")
-                                    }
-                                } else {
-                                    TextAction("Rename") {
-                                        confirmDeleteId = null
-                                        renamingId = category.id
-                                    }
-                                    TextAction("Delete", BitsColors.Danger) {
-                                        confirmDeleteId = category.id
-                                    }
-                                }
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .draggableHandle(
-                                        onDragStarted = { dragging = true },
-                                        onDragStopped = {
-                                            dragging = false
-                                            val orderedIds = local.map { entry -> entry.id }
-                                            repository.edit { s -> s.reorderCategories(orderedIds) }
-                                        },
-                                    )
-                                    .size(width = 36.dp, height = 44.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_drag),
-                                    contentDescription = "Reorder ${category.name}",
-                                    tint = BitsColors.Muted,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                            }
-                        }
-
-                        if (confirmDeleteId == category.id) {
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(Color(0x1FE8907F))
-                                    .padding(horizontal = 10.dp, vertical = 8.dp)
-                            ) {
-                                val noun = if (count == 1) "item" else "items"
-                                Text(
-                                    text = "Delete \u201C${category.name}\u201D and its $count $noun? This can't be undone.",
-                                    style = BitsText.Small.copy(color = BitsColors.Ink),
-                                )
-                                Row {
-                                    TextAction("Delete category", BitsColors.Danger) {
-                                        confirmDeleteId = null
-                                        repository.edit { s -> s.deleteCategory(category.id) }
-                                    }
-                                    TextAction("Keep it") { confirmDeleteId = null }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        var newName by rememberSaveable { mutableStateOf("") }
-        InputPill(
-            value = newName,
-            onValueChange = { newName = it },
-            placeholder = "New category",
-            onSubmit = {
-                val name = newName.trim()
-                if (name.isNotEmpty()) {
-                    repository.edit { s -> s.addCategory(name) }
-                    newName = ""
-                }
-            },
-        )
-    }
-}
-
 /** One of the move-between-categories arrows. Dimmed and inert at the ends of the list. */
 @Composable
 private fun ShiftArrow(glyph: String, enabled: Boolean, onClick: () -> Unit) {

@@ -219,9 +219,16 @@ fun BitsState.addCategory(name: String): BitsState {
     return copy(categories = categories + Category(newId(), name, order))
 }
 
-fun BitsState.renameCategory(id: String, name: String): BitsState =
-    if (isSystemCategory(id)) this
-    else copy(categories = categories.map { if (it.id == id) it.copy(name = name) else it })
+/**
+ * Renames a category. Today and Tomorrow are fixed, and a blank name is refused rather
+ * than leaving an unnamed heading on the widget and in the category strip.
+ */
+fun BitsState.renameCategory(id: String, name: String): BitsState {
+    if (isSystemCategory(id)) return this
+    val trimmed = name.trim()
+    if (trimmed.isEmpty()) return this
+    return copy(categories = categories.map { if (it.id == id) it.copy(name = trimmed) else it })
+}
 
 fun BitsState.deleteCategory(id: String): BitsState =
     if (isSystemCategory(id)) this
@@ -391,6 +398,8 @@ fun BitsState.claimEasterEgg(themeId: String, gameId: String, clockId: String): 
             bonusThemeIds = preferences.bonusThemeIds + theme.id,
             bonusGameIds = preferences.bonusGameIds + gameId,
             bonusClockIds = preferences.bonusClockIds + clock.id,
+            // The pixel-heading look rides along with any claimed set, as a small extra.
+            bonusPixelHeadings = true,
             easterEggClaims = preferences.easterEggClaims + 1,
             widgetThemeId = theme.id,
         )
@@ -444,6 +453,7 @@ fun BitsState.withEntitlementsFrom(device: BitsState): BitsState = copy(
         bonusClockIds = device.preferences.bonusClockIds,
         easterEggAllowance = device.preferences.easterEggAllowance,
         easterEggClaims = device.preferences.easterEggClaims,
+        bonusPixelHeadings = device.preferences.bonusPixelHeadings,
         // The install clock and the thank-you also belong to the device, not the file.
         installedAt = device.preferences.installedAt,
         anniversaryGiven = device.preferences.anniversaryGiven,
