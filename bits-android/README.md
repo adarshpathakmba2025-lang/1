@@ -2,6 +2,13 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.4.1
+
+Fixed a Gradle script failure. The release signing block used `java.util.Properties()`
+and `java.io.FileInputStream(...)` written out fully-qualified inline, which the Kotlin
+DSL does not resolve - a build script needs those as real imports at the top of the file.
+Both are now imported properly and referenced by their simple names.
+
 ## New in v1.4
 
 **The Edit button is now a full page.** Everything that used to be the "Widget lists"
