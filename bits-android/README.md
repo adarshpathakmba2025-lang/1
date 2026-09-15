@@ -2,6 +2,19 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.3.5
+
+Removed the Snake glide animation. It drew each segment sliding from its previous cell to
+its current one, which meant the head on screen was up to a full cell behind where the
+game logic actually had it. That is why fruit looked eaten a tile early and collisions
+looked like they happened before the head reached anything - and on death the animation
+froze mid-slide, leaving the snake permanently stranded a tile short of what it hit.
+
+No amount of tuning fixes that, because the mismatch is the concept itself: an
+interpolated head can never be in the same place as the logical head. Snake now draws at
+exact grid positions, so what is on screen is always exactly what the collision checks
+use. The improved turn responsiveness from 1.3.4 is kept.
+
 ## New in v1.3.4
 
 Snake turns respond properly again. Two things I added in 1.1 were fighting each other:

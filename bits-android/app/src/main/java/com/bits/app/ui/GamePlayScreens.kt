@@ -30,7 +30,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.withFrameMillis
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -218,11 +217,6 @@ private fun Tile2048(value: Int, modifier: Modifier = Modifier) {
 fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
     var state by remember { mutableStateOf(Snake.newGame()) }
     val latest by rememberUpdatedState(state)
-    // Kept purely for the glide animation: where every segment was one tick ago, so the
-    // canvas can draw a smooth slide from there to where it is now rather than a jump.
-    var previousBody by remember { mutableStateOf(state.body) }
-    var tickStart by remember { mutableStateOf(0L) }
-    var tickLength by remember { mutableStateOf(220L) }
 
     LaunchedEffect(state.dead) {
         if (state.dead) {
@@ -232,7 +226,7 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
         while (true) {
             // Speeds up gently as the snake grows, but never past a playable pace.
             val interval = (260L - latest.score * 6L).coerceAtLeast(110L)
-            tickStart = System.currentTimeMillis()
+            val tickStart = System.currentTimeMillis()
 
             // Rather than sleeping the whole interval, poll in short slices so a queued
             // turn can cut the wait short. Without this a swipe could sit unhandled for
@@ -248,11 +242,6 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 if (latest.pendingDirection != null && waited >= reactFloor) break
             }
 
-            // The glide is measured against however long this tick actually ran, so a
-            // tick cut short by a turn animates over that shorter span instead of
-            // appearing to lag behind.
-            tickLength = waited.coerceAtLeast(MIN_REACT)
-            previousBody = state.body
             state = Snake.step(state)
             if (latest.dead) break
         }
@@ -269,9 +258,7 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                     onScore(state.score)
                     // Built into a local first: reading back through the delegated
                     // `state` right after assigning it can't be smart-cast.
-                    val fresh = Snake.newGame()
-                    state = fresh
-                    previousBody = fresh.body
+                    state = Snake.newGame()
                 }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
@@ -282,16 +269,13 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
             }
         },
     ) {
-        // Redraws every animation frame, gliding each segment from its previous cell to
-        // its current one, so the snake reads as continuous motion rather than a series
-        // of teleports between ticks.
-        var frameNow by remember { mutableStateOf(System.currentTimeMillis()) }
-        LaunchedEffect(state.dead) {
-            while (!state.dead) {
-                withFrameMillis { frameNow = it }
-            }
-        }
-
+        // Drawn at exact grid positions, with no interpolation between ticks.
+        //
+        // An earlier version glided each segment from its previous cell to its current
+        // one. That looked smoother but meant the head was drawn up to a full cell behind
+        // where the game logic actually had it, so fruit appeared to be eaten early and
+        // collisions appeared to happen a tile before the head reached anything. What is
+        // on screen now always matches exactly what the collision checks are using.
         Canvas(
             Modifier
                 .fillMaxWidth()
@@ -302,21 +286,11 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 .swipeable { state = Snake.turn(state, it) }
         ) {
             val cell = size.width / Snake.GRID
-            val elapsed = frameNow - tickStart
-            // Completing the slide in a fraction of the tick keeps the motion smooth but
-            // still snappy; stretching it across the whole tick is what felt sluggish.
-            val glideSpan = (tickLength * GLIDE_FRACTION).coerceAtLeast(1f)
-            val progress = (elapsed.toFloat() / glideSpan).coerceIn(0f, 1f)
 
             state.body.forEachIndexed { index, point ->
-                // A body can grow between ticks (after eating), so any segment with no
-                // matching previous one just holds still rather than gliding from nowhere.
-                val from = previousBody.getOrNull(index) ?: point
-                val x = lerp(from.x.toFloat(), point.x.toFloat(), progress)
-                val y = lerp(from.y.toFloat(), point.y.toFloat(), progress)
                 drawRect(
                     color = if (index == 0) Color(0xFFBDF0C4) else Color(0xFF7FD68A),
-                    topLeft = Offset(x * cell, y * cell),
+                    topLeft = Offset(point.x * cell, point.y * cell),
                     size = Size(cell - 2f, cell - 2f),
                 )
             }
@@ -329,8 +303,6 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
     }
 }
 
-private fun lerp(a: Float, b: Float, t: Float): Float = a + (b - a) * t
-
 /** How often the Snake loop checks whether a turn is waiting. */
 private const val TICK_SLICE = 8L
 
@@ -339,9 +311,6 @@ private const val TICK_SLICE = 8L
  * immediate, high enough that frantic swiping can't race the snake forward.
  */
 private const val MIN_REACT = 55L
-
-/** Portion of a tick the glide animation occupies. */
-private const val GLIDE_FRACTION = 0.55f
 
 /**
  * Smallest share of a tick that must elapse before a queued turn can cut it short. Caps
