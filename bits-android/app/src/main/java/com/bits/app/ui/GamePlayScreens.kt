@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +43,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
+import com.bits.app.games.Bitris
 import com.bits.app.games.Board
 import com.bits.app.games.Direction
 import com.bits.app.games.FlappyBird
@@ -51,6 +54,7 @@ import com.bits.app.games.MemoryCard
 import com.bits.app.games.MemoryDeck
 import com.bits.app.games.MemoryMatch
 import com.bits.app.games.Snake
+import com.bits.app.games.Spaca
 import com.bits.app.games.SnakeState
 import com.bits.app.games.TicTacToe
 import com.bits.app.games.Wordle
@@ -1090,6 +1094,275 @@ fun FlappyScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 topLeft = Offset(FlappyState.BIRD_X * w, state.birdY * h),
                 size = Size(birdSize, birdSize),
             )
+        }
+    }
+}
+
+/* ------------------------------- Bitris ------------------------------- */
+
+@Composable
+fun BitrisScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
+    var state by remember { mutableStateOf(Bitris.newGame()) }
+    val latest by rememberUpdatedState(state)
+
+    // Gravity runs on its own clock. Player moves land straight on the state, so the
+    // loop only ever has to pull the piece down one row at the current pace.
+    LaunchedEffect(state.dead) {
+        if (state.dead) {
+            onScore(latest.score)
+            return@LaunchedEffect
+        }
+        while (true) {
+            delay(Bitris.dropIntervalFor(latest.level))
+            if (latest.dead) break
+            state = Bitris.step(state)
+        }
+    }
+
+    GameFrame(
+        title = "Bitris",
+        score = state.score,
+        best = best,
+        onBack = { onScore(state.score); onBack() },
+        footer = {
+            if (state.dead) {
+                GameOverBanner("Well full") {
+                    onScore(state.score)
+                    state = Bitris.newGame()
+                }
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Text("UP TURNS \u00B7 SWIPE DOWN DROPS", style = BitsText.PixelBody)
+                    Spacer(Modifier.height(10.dp))
+                    PixelDpad(
+                        onMove = { direction ->
+                            state = when (direction) {
+                                Direction.LEFT -> Bitris.move(state, -1)
+                                Direction.RIGHT -> Bitris.move(state, 1)
+                                Direction.UP -> Bitris.rotate(state)
+                                Direction.DOWN -> Bitris.softDrop(state)
+                            }
+                        }
+                    )
+                }
+            }
+        },
+    ) {
+        Row(Modifier.fillMaxHeight(), verticalAlignment = Alignment.Top) {
+            // The well. Swiping works alongside the pad for anyone who prefers it.
+            Canvas(
+                Modifier
+                    .fillMaxHeight()
+                    .aspectRatio(Bitris.COLS.toFloat() / Bitris.ROWS.toFloat())
+                    .background(Arcade.Border)
+                    .padding(3.dp)
+                    .background(Color(0xFF0E1922))
+                    .swipeable { direction ->
+                        state = when (direction) {
+                            Direction.LEFT -> Bitris.move(state, -1)
+                            Direction.RIGHT -> Bitris.move(state, 1)
+                            Direction.UP -> Bitris.rotate(state)
+                            Direction.DOWN -> Bitris.hardDrop(state)
+                        }
+                    }
+            ) {
+                val cell = minOf(size.width / Bitris.COLS, size.height / Bitris.ROWS)
+                // Centred, so an odd few pixels of remainder don't sit all on one side.
+                val originX = (size.width - cell * Bitris.COLS) / 2f
+                val originY = (size.height - cell * Bitris.ROWS) / 2f
+
+                fun block(x: Int, y: Int, colour: Color) {
+                    drawRect(
+                        color = colour,
+                        topLeft = Offset(originX + x * cell, originY + y * cell),
+                        size = Size(cell - 2f, cell - 2f),
+                    )
+                }
+
+                // Settled blocks.
+                state.grid.forEachIndexed { y, row ->
+                    row.forEachIndexed { x, value ->
+                        if (value != 0) block(x, y, Color(Bitris.PALETTE[value - 1]))
+                    }
+                }
+
+                // Where the piece would land, as a faint outline under it.
+                Bitris.ghostDrop(state)?.let { ghost ->
+                    val tint = Color(Bitris.PALETTE[Bitris.SHAPES[ghost.shape].colour - 1]).copy(alpha = 0.22f)
+                    Bitris.cellsOf(ghost).forEach { if (it.y >= 0) block(it.x, it.y, tint) }
+                }
+
+                // The falling piece itself, drawn last so it sits on top of its ghost.
+                state.active?.let { active ->
+                    val colour = Color(Bitris.PALETTE[Bitris.SHAPES[active.shape].colour - 1])
+                    Bitris.cellsOf(active).forEach { if (it.y >= 0) block(it.x, it.y, colour) }
+                }
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            Column(
+                Modifier.width(66.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("NEXT", style = BitsText.PixelCaption)
+                Spacer(Modifier.height(6.dp))
+                Canvas(
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .background(Arcade.Border)
+                        .padding(2.dp)
+                        .background(Color(0xFF0E1922))
+                ) {
+                    val cells = Bitris.previewCells(state.nextShape)
+                    val wide = cells.maxOf { it.x } + 1
+                    val tall = cells.maxOf { it.y } + 1
+                    val cell = minOf(size.width / 4f, size.height / 4f)
+                    val originX = (size.width - cell * wide) / 2f
+                    val originY = (size.height - cell * tall) / 2f
+                    val colour = Color(Bitris.PALETTE[Bitris.SHAPES[state.nextShape].colour - 1])
+                    cells.forEach {
+                        drawRect(
+                            color = colour,
+                            topLeft = Offset(originX + it.x * cell, originY + it.y * cell),
+                            size = Size(cell - 2f, cell - 2f),
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("LINES", style = BitsText.PixelCaption)
+                Text("${state.lines}", style = BitsText.PixelScore.copy(color = Arcade.Glow))
+                Spacer(Modifier.height(8.dp))
+                Text("LEVEL", style = BitsText.PixelCaption)
+                Text("${state.level}", style = BitsText.PixelScore.copy(color = BitsColors.Muted))
+            }
+        }
+    }
+}
+
+/* -------------------------------- Spaca -------------------------------- */
+
+private val spacaKindColours = listOf(
+    Color(0xFF7FD68A),
+    Color(0xFF5BD3D3),
+    Color(0xFFCFA6FF),
+)
+
+@Composable
+fun SpacaScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
+    var state by remember { mutableStateOf(Spaca.newGame()) }
+    val latest by rememberUpdatedState(state)
+
+    LaunchedEffect(state.started, state.dead) {
+        if (!state.started || state.dead) {
+            if (state.dead) onScore(latest.score)
+            return@LaunchedEffect
+        }
+        while (true) {
+            delay(16)
+            state = Spaca.step(state)
+            if (latest.dead) break
+        }
+    }
+
+    GameFrame(
+        title = "Spaca",
+        score = state.score,
+        best = best,
+        onBack = { onScore(state.score); onBack() },
+        footer = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "WAVE ${state.wave}",
+                        style = BitsText.PixelBody.copy(color = Arcade.Glow),
+                        modifier = Modifier.weight(1f),
+                    )
+                    // Lives as little blocks, so the count reads at a glance.
+                    Row {
+                        repeat(state.lives) {
+                            Box(
+                                Modifier
+                                    .padding(start = 4.dp)
+                                    .size(10.dp)
+                                    .background(BitsColors.Ink)
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                when {
+                    state.dead -> GameOverBanner("Ship lost") {
+                        onScore(state.score)
+                        state = Spaca.newGame()
+                    }
+                    !state.started -> Text("TOUCH THE SKY TO LAUNCH", style = BitsText.PixelBody)
+                    else -> Text("DRAG TO STEER \u00B7 GUNS ARE AUTO", style = BitsText.PixelBody)
+                }
+            }
+        },
+    ) {
+        Canvas(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(0.74f)
+                .background(Arcade.Border)
+                .padding(3.dp)
+                .background(Color(0xFF080D14))
+                // One gesture handler covers both jobs: the first touch launches, and the
+                // ship tracks the finger for as long as it stays down. Keeping it to a
+                // single detector avoids two handlers fighting over the same pointer.
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            state = Spaca.steer(Spaca.start(state), offset.x / size.width)
+                        },
+                        onDrag = { change, _ ->
+                            state = Spaca.steer(state, change.position.x / size.width)
+                            change.consume()
+                        },
+                    )
+                }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                ) { state = Spaca.start(state) }
+        ) {
+            val w = size.width
+            val h = size.height
+
+            fun box(cx: Float, cy: Float, bw: Float, bh: Float, colour: Color) {
+                drawRect(
+                    color = colour,
+                    topLeft = Offset((cx - bw / 2f) * w, (cy - bh / 2f) * h),
+                    size = Size(bw * w, bh * h),
+                )
+            }
+
+            // Drones: a blocky body with a brighter core, and a longer nose while diving.
+            state.drones.forEach { drone ->
+                val (dx, dy) = Spaca.positionOf(state, drone)
+                val colour = spacaKindColours[drone.kind]
+                box(dx, dy, Spaca.DRONE_W, Spaca.DRONE_H * 0.55f, colour)
+                box(dx, dy, Spaca.DRONE_W * 0.42f, Spaca.DRONE_H, colour)
+                box(dx, dy, Spaca.DRONE_W * 0.20f, Spaca.DRONE_H * 0.38f, Color(0xFF080D14))
+                if (drone.diving) {
+                    box(dx, dy + Spaca.DRONE_H * 0.55f, Spaca.DRONE_W * 0.18f, Spaca.DRONE_H * 0.4f, Arcade.Glow)
+                }
+            }
+
+            state.bombs.forEach { box(it.x, it.y, Spaca.SHOT_W, Spaca.SHOT_H, Color(0xFFE8907F)) }
+            state.shots.forEach { box(it.x, it.y, Spaca.SHOT_W, Spaca.SHOT_H, Arcade.Glow) }
+
+            // The ship blinks through its grace period so a fresh life is obvious.
+            val visible = state.grace == 0 || (state.grace / 6) % 2 == 0
+            if (visible) {
+                val ink = Color(0xFFEAE6DA)
+                box(state.shipX, Spaca.SHIP_Y, Spaca.SHIP_W, Spaca.SHIP_H * 0.45f, ink)
+                box(state.shipX, Spaca.SHIP_Y - Spaca.SHIP_H * 0.28f, Spaca.SHIP_W * 0.34f, Spaca.SHIP_H * 0.6f, ink)
+                box(state.shipX, Spaca.SHIP_Y + Spaca.SHIP_H * 0.30f, Spaca.SHIP_W * 0.72f, Spaca.SHIP_H * 0.3f, Arcade.Glow)
+            }
         }
     }
 }

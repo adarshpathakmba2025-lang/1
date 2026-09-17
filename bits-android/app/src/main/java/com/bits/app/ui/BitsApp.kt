@@ -271,6 +271,16 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                                     onBack = back,
                                 )
                                 GameId.TicTacToe -> TicTacToeScreen(onBack = back)
+                                GameId.Spaca -> SpacaScreen(
+                                    best = current.highScore(GameId.Spaca.key),
+                                    onScore = { record(GameId.Spaca.key, it) },
+                                    onBack = back,
+                                )
+                                GameId.Bitris -> BitrisScreen(
+                                    best = current.highScore(GameId.Bitris.key),
+                                    onScore = { record(GameId.Bitris.key, it) },
+                                    onBack = back,
+                                )
                                 GameId.Wordle -> {
                                     val day = java.time.LocalDate.now().toEpochDay()
                                     // A new day wipes the board; a skipped day also breaks the streak.

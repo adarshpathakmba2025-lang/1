@@ -2,6 +2,47 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.5
+
+**Two new games, bringing the hub to eight.**
+
+- **Spaca** - a fixed shooter. A formation of drones sways overhead, peels off to dive at
+  you, and drops bombs on the way down. Drag to steer; the guns fire themselves, so there
+  is no gesture competing with the steering. Divers are worth double, every third wave
+  hands back a life, and a hit costs one life with a blinking grace period after it.
+- **Bitris** - blocks fall, full rows clear. The pad moves and turns, swiping down drops.
+  A ghost outline shows where the piece will land, and there is a Next box beside the well
+  with the running line and level count.
+
+The falling-block and fixed-shooter *rules* are not anyone's property, but the arcade
+originals' look and names are, so neither is borrowed. Bitris deliberately avoids the
+familiar seven four-block pieces - three of its shapes are three-block pieces and the
+mirrored pair is left out - and the well is eighteen rows, in Bits' own palette. Spaca's
+attackers are plain blocks rather than insects, and there is no capture-and-rescue trick.
+
+Both games slot in exactly like the existing six: same card in the hub, same arcade frame,
+same high score and easter-egg reward plumbing. The Pro page's mini-games perk now reads
+six rather than four, and the easter-egg game picker offers the new pair automatically,
+since both lists are built from the same enum.
+
+**More words in Word Guess.** The answer list went from 309 to 541, which is also the list
+of accepted guesses, so far more everyday words are taken. A year of consecutive days now
+draws on over 300 distinct words instead of repeating.
+
+**Pixel headings actually apply now.** The previous version put the real font on a widget
+TextView, which works on some launchers and is quietly ignored on others - the widget is
+drawn by the launcher, not by Bits, so the font was being swapped for plain sans-serif.
+Headings are now drawn into a small bitmap here and sent across as an image, which cannot
+be substituted, so the face is the same everywhere. The size steps down to fit two lines
+and the result is cached. The in-app preview never consulted the setting at all, so the
+toggle and press-and-hold preview both looked inert; both work now.
+
+**"Your lists" is gone.** Renaming, reordering and deleting moved onto the category rows
+inside each widget card, under Categories. The same names were previously listed twice on
+one page - once to manage, once to choose from - which made it unclear which copy governed
+what. The tick chooses whether a list rides on this widget; tapping the name renames it.
+With pixel headings on, these names wear the pixel face too.
+
 ## New in v1.4.1
 
 Fixed a Gradle script failure. The release signing block used `java.util.Properties()`

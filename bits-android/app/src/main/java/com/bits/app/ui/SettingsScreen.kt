@@ -70,7 +70,12 @@ import com.bits.app.data.BitsState
 import com.bits.app.data.ClockStyle
 import com.bits.app.data.ClockStyles
 import com.bits.app.data.WidgetThemes
+import com.bits.app.data.Category
 import com.bits.app.data.addCategory
+import com.bits.app.data.deleteCategory
+import com.bits.app.data.isSystemCategory
+import com.bits.app.data.renameCategory
+import com.bits.app.data.reorderCategories
 import com.bits.app.data.editBoard
 import com.bits.app.data.pruneBoards
 import com.bits.app.data.resetBoard
@@ -397,6 +402,17 @@ fun WidgetListsSection(
                 modifier = Modifier.padding(top = 3.dp),
             )
             AddWidgetButton()
+
+            // Lists can still be named and ordered before a widget exists, otherwise
+            // removing the last widget would take the only way to manage them with it.
+            Divider()
+            CategoryManager(
+                state = state,
+                repository = repository,
+                settings = state.widget,
+                appWidgetId = null,
+                onApply = { transform -> repository.edit { it.copy(widget = transform(it.widget)) } },
+            )
         }
 
         // Without Pro every widget shares one look, so one card covers them all.
@@ -554,63 +570,12 @@ private fun WidgetCard(
 
         if (expanded) {
             Spacer(Modifier.height(16.dp))
-            Text("Categories", style = BitsText.Small)
-            state.sortedCategories.forEach { category ->
-                val shown = category.id !in settings.hiddenCategoryIds
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            val hidden = if (shown) settings.hiddenCategoryIds + category.id
-                            else settings.hiddenCategoryIds - category.id
-                            apply { it.copy(hiddenCategoryIds = hidden) }
-                        }
-                        .padding(vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = category.name,
-                        style = if (shown) BitsText.Body else BitsText.Body.copy(color = BitsColors.Muted.copy(alpha = 0.5f)),
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (shown) {
-                        Icon(Icons.Filled.Check, contentDescription = null, tint = BitsColors.Amber, modifier = Modifier.size(16.dp))
-                    }
-                }
-            }
-
-            var newCategory by remember { mutableStateOf("") }
-            InputPill(
-                value = newCategory,
-                onValueChange = { newCategory = it },
-                placeholder = "New category",
-                onSubmit = {
-                    val name = newCategory.trim()
-                    if (name.isNotEmpty()) {
-                        repository.edit { current ->
-                            val added = current.addCategory(name)
-                            val created = added.sortedCategories.lastOrNull()
-                            when {
-                                created == null -> added
-                                appWidgetId == null -> added
-                                else -> {
-                                    // Show it here only; keep every other widget as it was.
-                                    var next = added.copy(
-                                        widget = added.widget.copy(
-                                            hiddenCategoryIds = added.widget.hiddenCategoryIds + created.id
-                                        )
-                                    )
-                                    next.boards.keys.forEach { other ->
-                                        if (other != appWidgetId) next = next.setShownOnBoard(other, created.id, false)
-                                    }
-                                    next.setShownOnBoard(appWidgetId, created.id, true)
-                                }
-                            }
-                        }
-                        newCategory = ""
-                    }
-                },
+            CategoryManager(
+                state = state,
+                repository = repository,
+                settings = settings,
+                appWidgetId = appWidgetId,
+                onApply = { transform -> apply(transform) },
             )
 
             Divider()
@@ -1118,7 +1083,8 @@ fun WidgetPreview(
                 categories.forEachIndexed { index, category ->
                     Text(
                         text = category.name.uppercase(),
-                        style = BitsText.WidgetHeading.copy(color = accent),
+                        style = if (config.pixelHeadings) BitsText.PixelHeading.copy(color = accent)
+                        else BitsText.WidgetHeading.copy(color = accent),
                         modifier = Modifier.padding(top = if (index == 0) 0.dp else 15.dp, bottom = 5.dp),
                     )
                     state.itemsIn(category.id).forEach { item ->
@@ -1215,4 +1181,232 @@ private fun PreviewClock(styleId: String, ink: Color) {
             Text(fmt("EEEE, d MMMM"), style = BitsText.WidgetDate, modifier = Modifier.padding(top = 3.dp))
         }
     }
+}
+
+/**
+ * The category list for one widget card. It does two jobs at once: choosing which lists
+ * this widget carries, and managing the lists themselves.
+ *
+ * These used to be separate — a "Your lists" block for renaming and ordering, and this
+ * one for picking. Showing the same names twice on a single page made it unclear which
+ * copy governed what, so the management controls moved onto these rows instead.
+ *
+ * The checkbox is scoped to this widget. Renaming, reordering and deleting change the
+ * list itself, so they apply everywhere.
+ */
+@Composable
+private fun CategoryManager(
+    state: BitsState,
+    repository: BitsRepository,
+    settings: WidgetSettings,
+    appWidgetId: Int?,
+    onApply: ((WidgetSettings) -> WidgetSettings) -> Unit,
+) {
+    var renaming by remember { mutableStateOf<String?>(null) }
+    var confirmDelete by remember { mutableStateOf<String?>(null) }
+
+    // A small flourish: with pixel headings on, the names here wear the same face the
+    // widget will use, so the setting shows itself in the list it governs.
+    val pixel = settings.pixelHeadings && state.canUsePixelHeadings
+
+    Text("Categories", style = BitsText.Small)
+    Text(
+        text = "Tick a list to carry it on this widget. Tap its name to rename it.",
+        style = BitsText.Small.copy(color = BitsColors.Muted),
+        modifier = Modifier.padding(top = 2.dp, bottom = 4.dp),
+    )
+
+    val ordered = state.sortedCategories
+    ordered.forEach { category ->
+        val index = ordered.indexOf(category)
+        val system = isSystemCategory(category.id)
+        CategoryManagerRow(
+            category = category,
+            shown = category.id !in settings.hiddenCategoryIds,
+            system = system,
+            pixel = pixel,
+            // Today and Tomorrow anchor the top of every list, so nothing moves past them.
+            canMoveUp = !system && index > 0 && !isSystemCategory(ordered[index - 1].id),
+            canMoveDown = !system && index < ordered.lastIndex,
+            renaming = renaming == category.id,
+            confirming = confirmDelete == category.id,
+            onToggleShown = {
+                val shown = category.id !in settings.hiddenCategoryIds
+                val hidden = if (shown) settings.hiddenCategoryIds + category.id
+                else settings.hiddenCategoryIds - category.id
+                onApply { it.copy(hiddenCategoryIds = hidden) }
+            },
+            onStartRename = {
+                confirmDelete = null
+                renaming = category.id
+            },
+            onRename = { name ->
+                val trimmed = name.trim()
+                if (trimmed.isNotEmpty() && trimmed != category.name) {
+                    repository.edit { it.renameCategory(category.id, trimmed) }
+                }
+                renaming = null
+            },
+            onCancelRename = { renaming = null },
+            onMove = { up ->
+                val ids = ordered.map { it.id }.toMutableList()
+                val from = ids.indexOf(category.id)
+                val to = if (up) from - 1 else from + 1
+                if (to in ids.indices) {
+                    ids.add(to, ids.removeAt(from))
+                    repository.edit { it.reorderCategories(ids) }
+                }
+            },
+            onAskDelete = {
+                renaming = null
+                confirmDelete = category.id
+            },
+            onCancelDelete = { confirmDelete = null },
+            onConfirmDelete = {
+                repository.edit { it.deleteCategory(category.id) }
+                confirmDelete = null
+            },
+        )
+    }
+
+    var newCategory by remember { mutableStateOf("") }
+    InputPill(
+        value = newCategory,
+        onValueChange = { newCategory = it },
+        placeholder = "New category",
+        onSubmit = {
+            val name = newCategory.trim()
+            if (name.isNotEmpty()) {
+                repository.edit { current ->
+                    val added = current.addCategory(name)
+                    val created = added.sortedCategories.lastOrNull()
+                    when {
+                        created == null -> added
+                        appWidgetId == null -> added
+                        else -> {
+                            // Show it here only; keep every other widget as it was.
+                            var next = added.copy(
+                                widget = added.widget.copy(
+                                    hiddenCategoryIds = added.widget.hiddenCategoryIds + created.id
+                                )
+                            )
+                            next.boards.keys.forEach { other ->
+                                if (other != appWidgetId) next = next.setShownOnBoard(other, created.id, false)
+                            }
+                            next.setShownOnBoard(appWidgetId, created.id, true)
+                        }
+                    }
+                }
+                newCategory = ""
+            }
+        },
+    )
+}
+
+@Composable
+private fun CategoryManagerRow(
+    category: Category,
+    shown: Boolean,
+    system: Boolean,
+    pixel: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    renaming: Boolean,
+    confirming: Boolean,
+    onToggleShown: () -> Unit,
+    onStartRename: () -> Unit,
+    onRename: (String) -> Unit,
+    onCancelRename: () -> Unit,
+    onMove: (Boolean) -> Unit,
+    onAskDelete: () -> Unit,
+    onCancelDelete: () -> Unit,
+    onConfirmDelete: () -> Unit,
+) {
+    // Deleting a list takes its bits with it, so it asks first, inline.
+    if (confirming) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+            Text(
+                "Delete \u201C${category.name}\u201D? Everything in it goes too.",
+                style = BitsText.Small.copy(color = BitsColors.Ink),
+            )
+            Row(Modifier.padding(top = 4.dp)) {
+                Spacer(Modifier.weight(1f))
+                TextAction("Cancel", BitsColors.Muted, onCancelDelete)
+                TextAction("Delete", BitsColors.Danger, onConfirmDelete)
+            }
+        }
+        return
+    }
+
+    if (renaming) {
+        var draft by remember(category.id) { mutableStateOf(category.name) }
+        Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+            InputPill(
+                value = draft,
+                onValueChange = { draft = it },
+                placeholder = "List name",
+                onSubmit = { onRename(draft) },
+            )
+            Row(Modifier.padding(top = 4.dp)) {
+                Spacer(Modifier.weight(1f))
+                TextAction("Cancel", BitsColors.Muted, onCancelRename)
+                TextAction("Save", BitsColors.Ink) { onRename(draft) }
+            }
+        }
+        return
+    }
+
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The tick is its own target so tapping the name can mean rename instead.
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .toggleable(value = shown, role = Role.Checkbox, onValueChange = { onToggleShown() }),
+            contentAlignment = Alignment.Center,
+        ) {
+            CheckVisual(checked = shown, size = 18.dp)
+        }
+
+        val base = if (pixel) BitsText.PixelHeading else BitsText.Body
+        Text(
+            text = if (pixel) category.name.uppercase() else category.name,
+            style = when {
+                !shown -> base.copy(color = BitsColors.Muted.copy(alpha = 0.5f))
+                system -> base.copy(color = BitsColors.Muted)
+                else -> base.copy(color = BitsColors.Ink)
+            },
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .then(if (system) Modifier else Modifier.clickable(onClick = onStartRename))
+                .padding(vertical = 9.dp, horizontal = 4.dp),
+        )
+
+        if (system) {
+            // Today and Tomorrow are part of how Bits works, so they are fixed.
+            Text("Fixed", style = BitsText.Small.copy(color = BitsColors.Muted.copy(alpha = 0.7f)))
+        } else {
+            MoveArrow("\u25B2", canMoveUp) { onMove(true) }
+            MoveArrow("\u25BC", canMoveDown) { onMove(false) }
+            TextAction("Delete", BitsColors.Danger, onAskDelete)
+        }
+    }
+}
+
+@Composable
+private fun MoveArrow(glyph: String, enabled: Boolean, onClick: () -> Unit) {
+    Text(
+        text = glyph,
+        style = BitsText.Small.copy(
+            color = if (enabled) BitsColors.Amber else BitsColors.Muted.copy(alpha = 0.3f),
+        ),
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+    )
 }

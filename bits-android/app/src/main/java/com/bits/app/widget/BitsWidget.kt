@@ -209,13 +209,15 @@ private fun HeaderLine(
         .padding(top = if (first) 0.dp else 15.dp, bottom = 5.dp, end = 14.dp)
         .clickable(actionStartActivity(Launch.quickAdd(context, category.id, appWidgetId)))
 
-    if (pixel) {
-        // Rendered through RemoteViews so the real pixel font can be applied; Glance's
-        // own Text is limited to the system faces. The tint is pushed in from here so
-        // the heading still follows the widget's theme.
+    // The pixel face is drawn into a bitmap rather than asked for by name, because the
+    // launcher renders the widget and is free to ignore an app font. If the drawing
+    // fails for any reason the ordinary heading still appears.
+    val pixelBitmap = if (pixel) PixelHeading.render(context, category.name.uppercase(), accent.toArgb()) else null
+
+    if (pixelBitmap != null) {
         val views = RemoteViews(context.packageName, R.layout.widget_heading_pixel).apply {
-            setTextViewText(R.id.pixel_heading, category.name.uppercase())
-            setTextColor(R.id.pixel_heading, accent.toArgb())
+            setImageViewBitmap(R.id.pixel_heading, pixelBitmap)
+            setContentDescription(R.id.pixel_heading, category.name)
         }
         AndroidRemoteViews(remoteViews = views, modifier = tap)
     } else {

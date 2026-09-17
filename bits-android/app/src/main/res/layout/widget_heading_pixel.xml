@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A category heading in the pixel face. Glance's own Text can't take a custom font, but
-     a RemoteViews layout can, which is the same trick the clock styles use. The colour is
-     set from code so it follows whatever theme the widget is wearing. -->
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- A category heading in the pixel face.
+
+     This used to be a TextView with android:fontFamily="@font/press_start_2p". Widget
+     layouts are inflated by the launcher rather than by Bits, and a launcher is free to
+     ignore an app font and fall back to its own sans-serif, which is exactly what made
+     these headings come out plain.
+
+     An image cannot be substituted that way, so the heading is drawn into a bitmap by
+     PixelHeading and handed over already wearing the right face. -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/pixel_heading"
-    android:layout_width="match_parent"
+    android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:fontFamily="@font/press_start_2p"
-    android:includeFontPadding="false"
-    android:maxLines="2"
-    android:textColor="#F2B544"
-    android:textSize="11sp" />
+    android:adjustViewBounds="true"
+    android:scaleType="fitStart" />
