@@ -471,44 +471,57 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSprite(
 
 @Composable
 private fun TurnStatus(turnLine: String, heldLine: String?, hintLine: String, checkColor: Boolean) {
-    // Pinned to one line each: on an ordinary phone none of these strings are long
-    // enough to wrap anyway, but a very large accessibility font size could force a
-    // wrap, and a wrap is exactly the kind of height change this whole footer exists to
-    // rule out. Truncating instead is the safer failure.
-    Text(
-        text = turnLine,
-        style = BitsText.PixelBody.copy(color = if (checkColor) Arcade.Glow else BitsColors.Ink),
-        maxLines = 1,
-        softWrap = false,
-    )
-    Spacer(Modifier.height(6.dp))
-    if (heldLine != null) {
-        // Say out loud what has been picked up. The sprites are small, so naming the
-        // piece saves squinting at it - and it confirms the tap landed on the square
-        // that was meant.
-        Text(text = heldLine, style = BitsText.PixelBody.copy(color = Arcade.Glow), maxLines = 1, softWrap = false)
-        Spacer(Modifier.height(4.dp))
+    // Wrapped in its own Column deliberately: this is called from inside a plain Box
+    // twice over (the invisible reservation and the real content beside it), and a Box
+    // does not stack its children the way a Column does - it lays each one on top of
+    // the others at the same position. Without this Column of its own, every line here
+    // would print directly on top of every other line the moment the parent stopped
+    // being a Column, which is exactly the garbled overlapping text this fixes.
+    Column(Modifier.fillMaxWidth()) {
+        // Pinned to one line each: on an ordinary phone none of these strings are long
+        // enough to wrap anyway, but a very large accessibility font size could force a
+        // wrap, and a wrap is exactly the kind of height change this whole footer
+        // exists to rule out. Truncating instead is the safer failure.
+        Text(
+            text = turnLine,
+            style = BitsText.PixelBody.copy(color = if (checkColor) Arcade.Glow else BitsColors.Ink),
+            maxLines = 1,
+            softWrap = false,
+        )
+        Spacer(Modifier.height(6.dp))
+        if (heldLine != null) {
+            // Say out loud what has been picked up. The sprites are small, so naming
+            // the piece saves squinting at it - and it confirms the tap landed on the
+            // square that was meant.
+            Text(text = heldLine, style = BitsText.PixelBody.copy(color = Arcade.Glow), maxLines = 1, softWrap = false)
+            Spacer(Modifier.height(4.dp))
+        }
+        Text(text = hintLine, style = BitsText.PixelBody.copy(color = BitsColors.Muted), maxLines = 1, softWrap = false)
     }
-    Text(text = hintLine, style = BitsText.PixelBody.copy(color = BitsColors.Muted), maxLines = 1, softWrap = false)
 }
 
 /** The live promotion grid: two rows of two, each button calling [onChoose]. */
 @Composable
 private fun PromotionPicker(onChoose: (Int) -> Unit) {
-    Text("PROMOTE TO", style = BitsText.PixelBody.copy(color = Arcade.Glow))
-    Spacer(Modifier.height(8.dp))
-    // Two rows of two rather than one row of four. At nine points the pixel face makes
-    // "KNIGHT" about eighty-six dp wide, which does not fit in a quarter of a phone's
-    // width, so it broke across two lines. Half the width fits every name easily, and
-    // sharing each row equally makes all four the same size.
-    PROMOTION_CHOICES.chunked(2).forEach { pair ->
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            pair.forEach { (type, label) ->
-                PixelButton(label = label, modifier = Modifier.weight(1f), fillWidth = true) {
-                    onChoose(type)
+    // Self-contained for the same reason as TurnStatus above: whatever ends up calling
+    // this should not need to know or care that it happens to require vertical
+    // stacking to look right.
+    Column(Modifier.fillMaxWidth()) {
+        Text("PROMOTE TO", style = BitsText.PixelBody.copy(color = Arcade.Glow))
+        Spacer(Modifier.height(8.dp))
+        // Two rows of two rather than one row of four. At nine points the pixel face
+        // makes "KNIGHT" about eighty-six dp wide, which does not fit in a quarter of a
+        // phone's width, so it broke across two lines. Half the width fits every name
+        // easily, and sharing each row equally makes all four the same size.
+        PROMOTION_CHOICES.chunked(2).forEach { pair ->
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                pair.forEach { (type, label) ->
+                    PixelButton(label = label, modifier = Modifier.weight(1f), fillWidth = true) {
+                        onChoose(type)
+                    }
                 }
             }
         }
