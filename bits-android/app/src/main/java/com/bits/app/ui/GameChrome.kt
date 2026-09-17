@@ -78,6 +78,12 @@ fun PixelButton(
     label: String,
     modifier: Modifier = Modifier,
     accent: Color = Arcade.Glow,
+    /**
+     * Take the full width offered instead of hugging the label. Set this when several
+     * buttons sit side by side and share the width between them, so they come out the
+     * same size as each other rather than each one the width of its own word.
+     */
+    fillWidth: Boolean = false,
     onClick: () -> Unit,
 ) {
     Box(modifier) {
@@ -91,8 +97,14 @@ fun PixelButton(
             text = label.uppercase(),
             style = BitsText.PixelBody.copy(color = Arcade.Screen),
             textAlign = TextAlign.Center,
+            // A label belongs on one line. The pixel face is wide, so a long word in a
+            // narrow button would otherwise break across two lines and leave the row
+            // looking ragged.
+            maxLines = 1,
+            softWrap = false,
             modifier = Modifier
                 .padding(end = 3.dp, bottom = 3.dp)
+                .then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
                 .background(accent)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 12.dp),

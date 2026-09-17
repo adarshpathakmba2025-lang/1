@@ -222,16 +222,35 @@ fun ChessScreen(wins: Int, onWin: (Int) -> Unit, onBack: () -> Unit) {
                     promoting != null -> {
                         Text("PROMOTE TO", style = BitsText.PixelBody.copy(color = Arcade.Glow))
                         Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val (from, to) = promoting!!
-                            listOf(QUEEN to "Queen", ROOK to "Rook", BISHOP to "Bishop", KNIGHT to "Knight")
-                                .forEach { (type, label) ->
-                                    PixelButton(label) {
-                                        val move = Chess.movesFrom(state, from)
-                                            .firstOrNull { it.to == to && it.promotion == type }
-                                        if (move != null) play(move)
-                                    }
+                        val (fromSquare, toSquare) = promoting!!
+                        val choices = listOf(
+                            QUEEN to "Queen", ROOK to "Rook", BISHOP to "Bishop", KNIGHT to "Knight",
+                        )
+
+                        fun promote(type: Int) {
+                            val move = Chess.movesFrom(state, fromSquare)
+                                .firstOrNull { it.to == toSquare && it.promotion == type }
+                            if (move != null) play(move)
+                        }
+
+                        // Two rows of two rather than one row of four. At nine points
+                        // the pixel face makes "KNIGHT" about eighty-six dp wide, which
+                        // does not fit in a quarter of a phone's width, so it broke
+                        // across two lines. Half the width fits every name easily, and
+                        // sharing each row equally makes all four the same size.
+                        choices.chunked(2).forEach { pair ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                pair.forEach { (type, label) ->
+                                    PixelButton(
+                                        label = label,
+                                        modifier = Modifier.weight(1f),
+                                        fillWidth = true,
+                                    ) { promote(type) }
                                 }
+                            }
                         }
                     }
 
@@ -247,10 +266,26 @@ fun ChessScreen(wins: Int, onWin: (Int) -> Unit, onBack: () -> Unit) {
                             ),
                         )
                         Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = if (selected == null) "TAP A PIECE TO SEE ITS MOVES" else "TAP A MARKED SQUARE",
-                            style = BitsText.PixelBody.copy(color = BitsColors.Muted),
-                        )
+                        val held = selected?.let { state.board[it] }
+                        if (held != null && held != NO_PIECE) {
+                            // Say out loud what has been picked up. The sprites are
+                            // small, so naming the piece saves squinting at it - and it
+                            // confirms the tap landed on the square that was meant.
+                            Text(
+                                text = "${if (isWhitePiece(held)) "WHITE" else "BLACK"} ${pieceName(pieceType(held))}",
+                                style = BitsText.PixelBody.copy(color = Arcade.Glow),
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = if (options.isEmpty()) "NO LEGAL MOVES" else "TAP A MARKED SQUARE",
+                                style = BitsText.PixelBody.copy(color = BitsColors.Muted),
+                            )
+                        } else {
+                            Text(
+                                text = "TAP A PIECE TO SEE ITS MOVES",
+                                style = BitsText.PixelBody.copy(color = BitsColors.Muted),
+                            )
+                        }
                     }
                 }
             }
@@ -430,6 +465,16 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSprite(
             }
         }
     }
+}
+
+private fun pieceName(type: Int): String = when (type) {
+    PAWN -> "PAWN"
+    KNIGHT -> "KNIGHT"
+    BISHOP -> "BISHOP"
+    ROOK -> "ROOK"
+    QUEEN -> "QUEEN"
+    KING -> "KING"
+    else -> ""
 }
 
 private fun outcomeText(outcome: ChessOutcome): String = when (outcome) {
