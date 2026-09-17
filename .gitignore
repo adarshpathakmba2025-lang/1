@@ -1,0 +1,18 @@
+# Build output
+build/
+app/build/
+.gradle/
+
+# Release signing. NEVER commit these: anyone with the keystore can publish updates
+# impersonating your app, and it cannot be replaced once your app is live.
+keystore.properties
+*.jks
+!app/bits-debug.keystore
+
+# IDE
+.idea/
+*.iml
+local.properties
+
+# OS
+.DS_Store
