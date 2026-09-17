@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -40,6 +42,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
@@ -1132,18 +1135,9 @@ fun BitrisScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Text("UP TURNS \u00B7 SWIPE DOWN DROPS", style = BitsText.PixelBody)
-                    Spacer(Modifier.height(10.dp))
-                    PixelDpad(
-                        onMove = { direction ->
-                            state = when (direction) {
-                                Direction.LEFT -> Bitris.move(state, -1)
-                                Direction.RIGHT -> Bitris.move(state, 1)
-                                Direction.UP -> Bitris.rotate(state)
-                                Direction.DOWN -> Bitris.softDrop(state)
-                            }
-                        }
-                    )
+                    Text("TAP TURNS \u00B7 DRAG MOVES", style = BitsText.PixelBody)
+                    Spacer(Modifier.height(6.dp))
+                    Text("FLICK DOWN TO DROP", style = BitsText.PixelBody.copy(color = BitsColors.Muted))
                 }
             }
         },
@@ -1157,14 +1151,12 @@ fun BitrisScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                     .background(Arcade.Border)
                     .padding(3.dp)
                     .background(Color(0xFF0E1922))
-                    .swipeable { direction ->
-                        state = when (direction) {
-                            Direction.LEFT -> Bitris.move(state, -1)
-                            Direction.RIGHT -> Bitris.move(state, 1)
-                            Direction.UP -> Bitris.rotate(state)
-                            Direction.DOWN -> Bitris.hardDrop(state)
-                        }
-                    }
+                    .bitrisGestures(
+                        onMove = { dx -> state = Bitris.move(state, dx) },
+                        onSoftDrop = { state = Bitris.softDrop(state) },
+                        onHardDrop = { state = Bitris.hardDrop(state) },
+                        onRotate = { state = Bitris.rotate(state) },
+                    )
             ) {
                 val cell = minOf(size.width / Bitris.COLS, size.height / Bitris.ROWS)
                 // Centred, so an odd few pixels of remainder don't sit all on one side.
@@ -1240,6 +1232,83 @@ fun BitrisScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
         }
     }
 }
+
+/**
+ * Every Bitris control in one gesture loop.
+ *
+ * Tap turns the piece, dragging sideways walks it a column at a time, dragging down
+ * guides it, and a quick flick down slams it home. It is written out by hand rather than
+ * composed from the ready-made tap and drag detectors because those would each want to
+ * claim the same pointer, and one would end up swallowing the other.
+ *
+ * Movement is counted off in whole cells as the finger travels, rather than being worked
+ * out once the finger lifts, so the piece tracks the hand instead of jumping at the end.
+ */
+private fun Modifier.bitrisGestures(
+    onMove: (Int) -> Unit,
+    onSoftDrop: () -> Unit,
+    onHardDrop: () -> Unit,
+    onRotate: () -> Unit,
+): Modifier = pointerInput(Unit) {
+    // One column of travel moves one column; a row of travel guides it one row. Matching
+    // the gesture to the grid is what makes the piece feel attached to the finger.
+    val stepX = (size.width.toFloat() / Bitris.COLS).coerceAtLeast(1f)
+    val stepY = (size.height.toFloat() / Bitris.ROWS).coerceAtLeast(1f)
+
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val startedAt = System.currentTimeMillis()
+        var carryX = 0f
+        var carryY = 0f
+        var travelX = 0f
+        var travelY = 0f
+        var dragged = false
+
+        while (true) {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+            if (!change.pressed) {
+                val elapsed = System.currentTimeMillis() - startedAt
+                when {
+                    // A touch that never really moved is a turn.
+                    !dragged && elapsed < TAP_LIMIT -> onRotate()
+                    // A short, fast, mostly-downward sweep slams the piece home.
+                    travelY > stepY * 2f && travelY > abs(travelX) * 2f && elapsed < FLICK_LIMIT -> onHardDrop()
+                }
+                change.consume()
+                break
+            }
+
+            val delta = change.positionChange()
+            travelX += delta.x
+            travelY += delta.y
+            carryX += delta.x
+            carryY += delta.y
+            if (abs(travelX) > SLOP || abs(travelY) > SLOP) dragged = true
+
+            // Whole cells only, with the remainder carried into the next move, so a slow
+            // drag never loses ground and a fast one never skips a column.
+            while (carryX >= stepX) { onMove(1); carryX -= stepX }
+            while (carryX <= -stepX) { onMove(-1); carryX += stepX }
+            while (carryY >= stepY) { onSoftDrop(); carryY -= stepY }
+            // Dragging upwards does nothing, and must not bank credit towards a later
+            // downward drag either.
+            if (carryY < 0f) carryY = 0f
+
+            change.consume()
+        }
+    }
+}
+
+/** Longest a touch can last and still count as a turn rather than a drag. */
+private const val TAP_LIMIT = 220L
+
+/** Longest a downward sweep can last and still count as a flick rather than a guide. */
+private const val FLICK_LIMIT = 320L
+
+/** How far a finger may wander before the touch stops counting as a tap. */
+private const val SLOP = 14f
 
 /* -------------------------------- Spaca -------------------------------- */
 

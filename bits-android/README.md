@@ -2,6 +2,29 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.5.1
+
+**Category rows, reworked.** A pixel pencil now sits beside each list and opens the
+rename; a single tap on the name itself carries that list on the widget or takes it off.
+Today and Tomorrow keep the space where the pencil would be, so every name stays on the
+same left edge. Renaming no longer has a row of buttons underneath it either - the field
+grew its own cross, so Save and the cancel sit together in one place.
+
+**The preview's "tap to scroll" hint is visible again.** It was being drawn before the
+widget body rather than after it, so the body painted straight over the top. It only ever
+showed through at all when the background opacity was turned down.
+
+**Bitris is swipe-only.** The pad is gone. Tap turns the piece, dragging sideways walks it
+a column at a time as the finger travels, dragging down guides it, and a quick flick down
+slams it home. The movement is counted off in whole cells against the well's own grid, so
+the piece stays under the finger instead of jumping when the finger lifts.
+
+One rule changed to make that work: guiding a piece down no longer locks it. Only gravity
+and a flick do. A locking soft drop would have slammed a piece home the moment a finger
+swept past the floor, and the rest of that same gesture would then have landed on the next
+piece. As a bonus it gives the old lock-delay feel, where a landed piece can still be slid
+sideways for a moment before it sets.
+
 ## New in v1.5
 
 **Two new games, bringing the hub to eight.**

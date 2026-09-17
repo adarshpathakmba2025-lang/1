@@ -192,6 +192,14 @@ fun InputPill(
     placeholder: String,
     onSubmit: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The wording on the confirm button. Renaming says Save rather than Add. */
+    submitLabel: String = "ADD",
+    /**
+     * When given, a cross appears just before the confirm button. It lets an edit be
+     * abandoned from inside the field itself, so a caller doesn't need its own row of
+     * buttons underneath.
+     */
+    onCancel: (() -> Unit)? = null,
 ) {
     val hasText = value.isNotBlank()
     val focusRequester = remember { FocusRequester() }
@@ -238,8 +246,21 @@ fun InputPill(
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
             )
         }
+        if (onCancel != null) {
+            // Plain ASCII on purpose: the pixel face has no glyph for a multiplication
+            // sign, and a missing glyph would draw as an empty box.
+            Text(
+                text = "X",
+                style = BitsText.ChipLabel.copy(color = BitsColors.Muted),
+                modifier = Modifier
+                    .padding(5.dp)
+                    .background(Color(0xFF1B2735))
+                    .clickable(onClick = onCancel)
+                    .padding(horizontal = 13.dp, vertical = 10.dp),
+            )
+        }
         Text(
-            text = "ADD",
+            text = submitLabel,
             style = BitsText.ChipLabel.copy(color = if (hasText) BitsColors.Bg else BitsColors.Muted),
             modifier = Modifier
                 .padding(5.dp)

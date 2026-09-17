@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- A pencil built from square blocks, so it sits with the other pixel icons.
+         Stepped diagonally rather than drawn as a smooth line, which is what keeps
+         the retro look at every density. -->
+    <path android:fillColor="#F2B544" android:pathData="M15,3h4v4h-4z" />
+    <path android:fillColor="#EAE6DA" android:pathData="M12,6h4v4h-4z" />
+    <path android:fillColor="#EAE6DA" android:pathData="M9,9h4v4h-4z" />
+    <path android:fillColor="#EAE6DA" android:pathData="M6,12h4v4h-4z" />
+    <path android:fillColor="#8A95A3" android:pathData="M4,15h4v4h-4z" />
+    <path android:fillColor="#E8907F" android:pathData="M3,18h4v3h-4z" />
+</vector>

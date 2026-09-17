@@ -1045,19 +1045,6 @@ fun WidgetPreview(
     ) {
         DotGrid(Modifier.fillMaxSize(), spacing = 14.dp, color = Color(0x17EAE6DA))
 
-        if (!interactive) {
-            Text(
-                text = "Tap to scroll",
-                style = BitsText.Small.copy(color = BitsColors.Ink),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(18.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xCC0C131B))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            )
-        }
-
         Column(
             Modifier
                 .fillMaxSize()
@@ -1116,6 +1103,21 @@ fun WidgetPreview(
                     modifier = Modifier.padding(6.dp).size(34.dp),
                 )
             }
+        }
+
+        // Drawn after the widget body, not before it. Sitting earlier in the Box meant
+        // the body was painted straight over the top and the hint was never visible.
+        if (!interactive) {
+            Text(
+                text = "Tap to scroll",
+                style = BitsText.Small.copy(color = BitsColors.Ink),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(18.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xCC0C131B))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
         }
     }
 }
@@ -1211,7 +1213,7 @@ private fun CategoryManager(
 
     Text("Categories", style = BitsText.Small)
     Text(
-        text = "Tick a list to carry it on this widget. Tap its name to rename it.",
+        text = "Tap a name to show or hide it on this widget. Tap the pencil to rename.",
         style = BitsText.Small.copy(color = BitsColors.Muted),
         modifier = Modifier.padding(top = 2.dp, bottom = 4.dp),
     )
@@ -1340,19 +1342,15 @@ private fun CategoryManagerRow(
 
     if (renaming) {
         var draft by remember(category.id) { mutableStateOf(category.name) }
-        Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-            InputPill(
-                value = draft,
-                onValueChange = { draft = it },
-                placeholder = "List name",
-                onSubmit = { onRename(draft) },
-            )
-            Row(Modifier.padding(top = 4.dp)) {
-                Spacer(Modifier.weight(1f))
-                TextAction("Cancel", BitsColors.Muted, onCancelRename)
-                TextAction("Save", BitsColors.Ink) { onRename(draft) }
-            }
-        }
+        InputPill(
+            value = draft,
+            onValueChange = { draft = it },
+            placeholder = "List name",
+            onSubmit = { onRename(draft) },
+            modifier = Modifier.padding(vertical = 6.dp),
+            submitLabel = "SAVE",
+            onCancel = onCancelRename,
+        )
         return
     }
 
@@ -1360,15 +1358,23 @@ private fun CategoryManagerRow(
         Modifier.fillMaxWidth().padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The tick is its own target so tapping the name can mean rename instead.
+        // The pencil is its own target, so a tap on the name is free to mean something
+        // else. Today and Tomorrow can't be renamed, so they get the space but no
+        // pencil, which keeps every name on the same left edge.
         Box(
             modifier = Modifier
                 .size(38.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .toggleable(value = shown, role = Role.Checkbox, onValueChange = { onToggleShown() }),
+                .then(if (system) Modifier else Modifier.clickable(onClick = onStartRename)),
             contentAlignment = Alignment.Center,
         ) {
-            CheckVisual(checked = shown, size = 18.dp)
+            if (!system) {
+                Image(
+                    painter = painterResource(R.drawable.ic_pencil_pixel),
+                    contentDescription = "Rename ${category.name}",
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
 
         val base = if (pixel) BitsText.PixelHeading else BitsText.Body
@@ -1382,7 +1388,12 @@ private fun CategoryManagerRow(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(8.dp))
-                .then(if (system) Modifier else Modifier.clickable(onClick = onStartRename))
+                // A single tap carries this list on the widget, or takes it off again.
+                .toggleable(
+                    value = shown,
+                    role = Role.Switch,
+                    onValueChange = { onToggleShown() },
+                )
                 .padding(vertical = 9.dp, horizontal = 4.dp),
         )
 

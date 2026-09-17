@@ -200,15 +200,23 @@ object Bitris {
         return if (landed.dead) landed else landed.copy(score = landed.score + fallen * 2)
     }
 
-    /** Nudges the piece down one row by hand, worth a single point. */
-    fun softDrop(state: BitrisState, random: Random = Random.Default): BitrisState {
+    /**
+     * Guides the piece down one row by hand, worth a single point.
+     *
+     * Deliberately does not lock when it reaches the bottom: only gravity and a hard
+     * drop do that. Dragging down is a continuous gesture, so a locking soft drop would
+     * slam a piece home the instant a finger swept past the floor, and the rest of the
+     * gesture would then be applied to the next piece. Leaving the lock to gravity also
+     * gives the player a moment to slide the piece sideways once it has landed.
+     */
+    fun softDrop(state: BitrisState): BitrisState {
         val active = state.active ?: return state
         if (state.dead) return state
         val dropped = active.copy(y = active.y + 1)
         return if (fits(state.grid, cellsOf(dropped))) {
             state.copy(active = dropped, score = state.score + 1)
         } else {
-            lock(state, active, random)
+            state
         }
     }
 
