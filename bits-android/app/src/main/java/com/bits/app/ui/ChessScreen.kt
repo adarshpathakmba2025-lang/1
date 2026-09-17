@@ -25,7 +25,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 import com.bits.app.games.BISHOP
@@ -223,66 +222,70 @@ fun ChessScreen(wins: Int, onWin: (Int) -> Unit, onBack: () -> Unit) {
         leftLabel = "MOVE",
         rightLabel = "WINS",
         footer = {
-            // Every state below is a different height: a one-line hint, a three-line
-            // piece callout, the promotion grid, the game-over banner. Left alone, the
-            // footer would grow and shrink with whichever is showing, and since the
-            // board above sits in the remaining space, the board would resize and
-            // recentre on every single tap - the "dancing" this replaced.
+            // Only the two states below - no piece picked up, or one picked up - change
+            // on every single tap during ordinary play, so only those two are held to a
+            // fixed height. Promotion and the end-of-game banner are rare or terminal;
+            // letting the board shift a little for either of those is no annoyance, and
+            // trying to reserve space for the promotion grid too is what caused the
+            // previous bug: a hand-measured stand-in for its buttons came out a few dp
+            // short of the real ones, and the real grid got squeezed to match, pushing
+            // its bottom row past the edge of the screen.
             //
-            // The fix reserves height for the tallest state - the promotion grid -
-            // permanently, using an invisible copy of it with no click handling of its
-            // own. It sits underneath and is never seen, but the Box still measures its
-            // full size, so the footer (and therefore the board above it) never changes
-            // height no matter which state is actually showing.
-            Box {
-                Box(Modifier.alpha(0f)) { PromotionGhost() }
-                Box(Modifier.matchParentSize()) {
-                    Column(Modifier.fillMaxWidth()) {
-                        when {
-                            mode == null -> Unit
+            // The fix here reuses one composable for both the invisible reservation and
+            // the real content, so their sizes cannot drift apart the way hand-matching
+            // two separate layouts did: the ghost simply calls it with the longest
+            // strings play produces, which is guaranteed to be at least as tall as
+            // whatever the real call ends up showing.
+            Column(Modifier.fillMaxWidth()) {
+                when {
+                    mode == null -> Unit
 
-                            promoting != null -> {
-                                val (fromSquare, toSquare) = promoting!!
-                                PromotionPicker { type ->
-                                    val move = Chess.movesFrom(state, fromSquare)
-                                        .firstOrNull { it.to == toSquare && it.promotion == type }
-                                    if (move != null) play(move)
-                                }
-                            }
+                    promoting != null -> {
+                        val (fromSquare, toSquare) = promoting!!
+                        PromotionPicker { type ->
+                            val move = Chess.movesFrom(state, fromSquare)
+                                .firstOrNull { it.to == toSquare && it.promotion == type }
+                            if (move != null) play(move)
+                        }
+                    }
 
-                            finished -> GameOverBanner(outcomeText(outcome)) { reset() }
+                    finished -> GameOverBanner(outcomeText(outcome)) { reset() }
 
-                            else -> {
-                                val turn = if (state.whiteToMove) "WHITE" else "BLACK"
-                                val check = if (inCheck) " \u00B7 CHECK" else ""
-                                Text(
-                                    text = if (thinking) "THINKING" else "$turn TO MOVE$check",
-                                    style = BitsText.PixelBody.copy(
-                                        color = if (check.isNotEmpty()) Arcade.Glow else BitsColors.Ink,
-                                    ),
+                    else -> {
+                        val turn = if (state.whiteToMove) "WHITE" else "BLACK"
+                        val check = if (inCheck) " \u00B7 CHECK" else ""
+                        val turnLine = if (thinking) "THINKING" else "$turn TO MOVE$check"
+                        val held = selected?.let { state.board[it] }
+                        val heldLine = if (held != null && held != NO_PIECE) {
+                            "${if (isWhitePiece(held)) "WHITE" else "BLACK"} ${pieceName(pieceType(held))}"
+                        } else {
+                            null
+                        }
+                        val hintLine = when {
+                            heldLine == null -> "TAP A PIECE TO SEE ITS MOVES"
+                            options.isEmpty() -> "NO LEGAL MOVES"
+                            else -> "TAP A MARKED SQUARE"
+                        }
+
+                        Box {
+                            // A hidden longest-case call establishes the height; the
+                            // real call underneath is always the same size or smaller,
+                            // so it can never be squeezed and never needs to overflow.
+                            Box(Modifier.alpha(0f)) {
+                                TurnStatus(
+                                    turnLine = "BLACK TO MOVE \u00B7 CHECK",
+                                    heldLine = "WHITE KNIGHT",
+                                    hintLine = "TAP A MARKED SQUARE",
+                                    checkColor = false,
                                 )
-                                Spacer(Modifier.height(6.dp))
-                                val held = selected?.let { state.board[it] }
-                                if (held != null && held != NO_PIECE) {
-                                    // Say out loud what has been picked up. The sprites
-                                    // are small, so naming the piece saves squinting at
-                                    // it - and it confirms the tap landed on the square
-                                    // that was meant.
-                                    Text(
-                                        text = "${if (isWhitePiece(held)) "WHITE" else "BLACK"} ${pieceName(pieceType(held))}",
-                                        style = BitsText.PixelBody.copy(color = Arcade.Glow),
-                                    )
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        text = if (options.isEmpty()) "NO LEGAL MOVES" else "TAP A MARKED SQUARE",
-                                        style = BitsText.PixelBody.copy(color = BitsColors.Muted),
-                                    )
-                                } else {
-                                    Text(
-                                        text = "TAP A PIECE TO SEE ITS MOVES",
-                                        style = BitsText.PixelBody.copy(color = BitsColors.Muted),
-                                    )
-                                }
+                            }
+                            Box(Modifier.matchParentSize()) {
+                                TurnStatus(
+                                    turnLine = turnLine,
+                                    heldLine = heldLine,
+                                    hintLine = hintLine,
+                                    checkColor = check.isNotEmpty(),
+                                )
                             }
                         }
                     }
@@ -466,6 +469,29 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSprite(
     }
 }
 
+@Composable
+private fun TurnStatus(turnLine: String, heldLine: String?, hintLine: String, checkColor: Boolean) {
+    // Pinned to one line each: on an ordinary phone none of these strings are long
+    // enough to wrap anyway, but a very large accessibility font size could force a
+    // wrap, and a wrap is exactly the kind of height change this whole footer exists to
+    // rule out. Truncating instead is the safer failure.
+    Text(
+        text = turnLine,
+        style = BitsText.PixelBody.copy(color = if (checkColor) Arcade.Glow else BitsColors.Ink),
+        maxLines = 1,
+        softWrap = false,
+    )
+    Spacer(Modifier.height(6.dp))
+    if (heldLine != null) {
+        // Say out loud what has been picked up. The sprites are small, so naming the
+        // piece saves squinting at it - and it confirms the tap landed on the square
+        // that was meant.
+        Text(text = heldLine, style = BitsText.PixelBody.copy(color = Arcade.Glow), maxLines = 1, softWrap = false)
+        Spacer(Modifier.height(4.dp))
+    }
+    Text(text = hintLine, style = BitsText.PixelBody.copy(color = BitsColors.Muted), maxLines = 1, softWrap = false)
+}
+
 /** The live promotion grid: two rows of two, each button calling [onChoose]. */
 @Composable
 private fun PromotionPicker(onChoose: (Int) -> Unit) {
@@ -483,39 +509,6 @@ private fun PromotionPicker(onChoose: (Int) -> Unit) {
             pair.forEach { (type, label) ->
                 PixelButton(label = label, modifier = Modifier.weight(1f), fillWidth = true) {
                     onChoose(type)
-                }
-            }
-        }
-    }
-}
-
-/**
- * The same layout as [PromotionPicker], pixel for pixel, but with no click handling: it
- * exists only so the footer can measure the tallest state it will ever show. Drawn with
- * zero alpha, so a tap in the reserved space below a shorter state passes straight
- * through instead of accidentally promoting a pawn.
- */
-@Composable
-private fun PromotionGhost() {
-    Text("PROMOTE TO", style = BitsText.PixelBody)
-    Spacer(Modifier.height(8.dp))
-    PROMOTION_CHOICES.chunked(2).forEach { pair ->
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            pair.forEach { (_, label) ->
-                Box(Modifier.weight(1f)) {
-                    Text(
-                        text = label.uppercase(),
-                        style = BitsText.PixelBody,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        softWrap = false,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                    )
                 }
             }
         }
