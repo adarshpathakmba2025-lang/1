@@ -1,5 +1,6 @@
 package com.bits.app.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,8 +26,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.bits.app.games.Direction
+import com.bits.app.R
 import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
 
@@ -138,6 +141,24 @@ private fun DpadKey(glyph: String, description: String, onClick: () -> Unit) {
                 modifier = Modifier.semantics { contentDescription = description },
             )
         }
+    }
+}
+
+/**
+ * The pause control for the games that run on a clock. Shows a play glyph once paused,
+ * so the same button both stops and restarts the action.
+ */
+@Composable
+fun PauseButton(paused: Boolean, onToggle: () -> Unit) {
+    Box(
+        modifier = Modifier.size(48.dp).clickable(onClick = onToggle),
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(if (paused) R.drawable.ic_play_pixel else R.drawable.ic_pause_pixel),
+            contentDescription = if (paused) "Resume" else "Pause",
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 

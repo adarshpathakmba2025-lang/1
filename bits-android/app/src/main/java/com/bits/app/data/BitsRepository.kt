@@ -59,18 +59,31 @@ class BitsRepository private constructor(context: Context) {
         }
     }
 
-    /** Apply a change and wait until it's on disk and on the home screen. Used by widget taps. */
+    /**
+     * Apply a change and wait until it's on the home screen and on disk. Used by widget
+     * taps.
+     *
+     * The repaint happens before the save, not after. Both the app and the widget read
+     * the in-memory state, so the tick could always have been drawn the moment that
+     * changed - waiting for the whole file to be encoded and written first was pure
+     * delay in front of the one thing the tapper is watching for. The save still
+     * finishes inside this call, so nothing is at risk; it just no longer holds up the
+     * screen.
+     */
     suspend fun editNow(transform: (BitsState) -> BitsState) {
-        withContext(dispatcher) {
+        val changed = withContext(dispatcher) {
             val current = ensureLoaded()
             val next = transform(current)
-            if (next != current) {
-                _state.value = next
-                writeJob?.cancel()
-                write(next)
-            }
+            if (next == current) return@withContext false
+            _state.value = next
+            // Any debounced save is now stale; this call does the saving itself.
+            writeJob?.cancel()
+            true
         }
+        if (!changed) return
+
         refreshWidgetsNow()
+        withContext(dispatcher) { _state.value?.let { write(it) } }
     }
 
     /** Deletes an item and remembers it, so the undo prompt can bring it back. */
@@ -209,10 +222,18 @@ class BitsRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Repaints the widget after a short pause, so a burst of edits costs one repaint
+     * instead of one each.
+     *
+     * The pause used to be 300ms, which was long enough to read as lag when ticking
+     * something off in the app and glancing at the home screen. Short enough now to
+     * feel immediate, still long enough to collapse a burst.
+     */
     private fun scheduleWidgetRefresh() {
         widgetJob?.cancel()
         widgetJob = scope.launch {
-            delay(300)
+            delay(80)
             refreshWidgetsNow()
         }
     }

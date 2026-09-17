@@ -35,8 +35,9 @@ enum class GameId(val key: String, val title: String, val blurb: String, val ico
     TicTacToe("tictactoe", "X and O", "Three in a row, if you can", R.drawable.ic_game_tictactoe, false),
     Wordle("wordle", "Word Guess", "Five letters, one word a day", R.drawable.ic_game_wordle, false),
     Flappy("flappy", "Flappy", "Tap to flap, mind the pipes", R.drawable.ic_game_flappy, false),
-    Spaca("spaca", "Spaca", "Steer, shoot, clear the sky", R.drawable.ic_game_spaca, false),
+    Spasa("spasa", "Spasa", "Steer, shoot, clear the sky", R.drawable.ic_game_spasa, false),
     Bitris("bitris", "Bitris", "Stack the blocks, clear the rows", R.drawable.ic_game_bitris, false),
+    Chess("chess", "Chess", "Full rules, you or the machine", R.drawable.ic_game_chess, false),
 }
 
 @Composable

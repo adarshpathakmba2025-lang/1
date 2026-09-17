@@ -271,14 +271,21 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                                     onBack = back,
                                 )
                                 GameId.TicTacToe -> TicTacToeScreen(onBack = back)
-                                GameId.Spaca -> SpacaScreen(
-                                    best = current.highScore(GameId.Spaca.key),
-                                    onScore = { record(GameId.Spaca.key, it) },
+                                GameId.Spasa -> SpasaScreen(
+                                    best = current.highScore(GameId.Spasa.key),
+                                    onScore = { record(GameId.Spasa.key, it) },
                                     onBack = back,
                                 )
                                 GameId.Bitris -> BitrisScreen(
                                     best = current.highScore(GameId.Bitris.key),
                                     onScore = { record(GameId.Bitris.key, it) },
+                                    onBack = back,
+                                )
+                                // Chess keeps a count of wins against the computer
+                                // rather than a score, which the same store handles.
+                                GameId.Chess -> ChessScreen(
+                                    wins = current.highScore(GameId.Chess.key),
+                                    onWin = { record(GameId.Chess.key, it) },
                                     onBack = back,
                                 )
                                 GameId.Wordle -> {

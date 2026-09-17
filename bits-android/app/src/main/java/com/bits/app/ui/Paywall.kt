@@ -116,7 +116,7 @@ fun FounderDialog(isPro: Boolean, onContinue: () -> Unit) {
 private data class Perk(val title: String, val body: String, val icon: Int)
 
 private val perks = listOf(
-    Perk("Six more mini-games", "Memory Match, X and O, Word Guess, Flappy, Spaca and Bitris, all unlocked.", R.drawable.ic_game_flappy),
+    Perk("Seven more mini-games", "Memory Match, X and O, Word Guess, Flappy, Spasa, Bitris and Chess, all unlocked.", R.drawable.ic_game_flappy),
     Perk("Eight widget themes", "Full palettes, not just accent colours. Try any before you buy.", R.drawable.ic_theme),
     Perk("Premium clock styles", "Stacked, monospace, statement and seconds.", R.drawable.ic_clock),
     Perk("Independent widget lists", "Give each widget its own categories.", R.drawable.ic_widget_add),

@@ -57,7 +57,7 @@ import com.bits.app.games.MemoryCard
 import com.bits.app.games.MemoryDeck
 import com.bits.app.games.MemoryMatch
 import com.bits.app.games.Snake
-import com.bits.app.games.Spaca
+import com.bits.app.games.Spasa
 import com.bits.app.games.SnakeState
 import com.bits.app.games.TicTacToe
 import com.bits.app.games.Wordle
@@ -94,7 +94,7 @@ private fun Modifier.swipeable(onSwipe: (Direction) -> Unit): Modifier = pointer
 }
 
 @Composable
-private fun GameFrame(
+internal fun GameFrame(
     title: String,
     score: Int,
     best: Int,
@@ -102,11 +102,22 @@ private fun GameFrame(
     leftLabel: String = "SCORE",
     rightLabel: String = "BEST",
     onResetBest: (() -> Unit)? = null,
+    /** Non-null for the games that run on a clock, which put a pause in the header. */
+    paused: Boolean? = null,
+    onTogglePause: (() -> Unit)? = null,
     footer: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     Column(Modifier.fillMaxSize().background(Arcade.Screen)) {
-        ArcadeHeader(title = title, onBack = onBack)
+        ArcadeHeader(
+            title = title,
+            onBack = onBack,
+            trailing = if (paused != null && onTogglePause != null) {
+                { PauseButton(paused = paused, onToggle = onTogglePause) }
+            } else {
+                null
+            },
+        )
         ScoreBar(
             score = score,
             best = best,
@@ -127,7 +138,7 @@ private fun GameFrame(
 }
 
 @Composable
-private fun GameOverBanner(message: String, onRestart: () -> Unit) {
+internal fun GameOverBanner(message: String, onRestart: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(message.uppercase(), style = BitsText.PixelBody.copy(color = Arcade.Glow), modifier = Modifier.weight(1f))
         PixelButton("Again", onClick = onRestart)
@@ -223,11 +234,14 @@ private fun Tile2048(value: Int, modifier: Modifier = Modifier) {
 @Composable
 fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
     var state by remember { mutableStateOf(Snake.newGame()) }
+    var paused by remember { mutableStateOf(false) }
     val latest by rememberUpdatedState(state)
 
-    LaunchedEffect(state.dead) {
-        if (state.dead) {
-            onScore(latest.score)
+    // Pausing cancels this effect, which is what stops the clock. Resuming restarts it
+    // from wherever the snake had got to.
+    LaunchedEffect(state.dead, paused) {
+        if (state.dead || paused) {
+            if (state.dead) onScore(latest.score)
             return@LaunchedEffect
         }
         while (true) {
@@ -259,6 +273,8 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
         score = state.score,
         best = best,
         onBack = { onScore(state.score); onBack() },
+        paused = if (state.dead) null else paused,
+        onTogglePause = { paused = !paused },
         footer = {
             if (state.dead) {
                 GameOverBanner("Game over") {
@@ -269,9 +285,9 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Text("SWIPE OR USE THE PAD", style = BitsText.PixelBody)
+                    Text(if (paused) "PAUSED" else "SWIPE OR USE THE PAD", style = BitsText.PixelBody)
                     Spacer(Modifier.height(10.dp))
-                    PixelDpad(onMove = { state = Snake.turn(state, it) })
+                    PixelDpad(onMove = { if (!paused) state = Snake.turn(state, it) })
                 }
             }
         },
@@ -290,7 +306,7 @@ fun SnakeScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 .background(Arcade.Border)
                 .padding(3.dp)
                 .background(Color(0xFF0E1922))
-                .swipeable { state = Snake.turn(state, it) }
+                .swipeable { if (!paused) state = Snake.turn(state, it) }
         ) {
             val cell = size.width / Snake.GRID
 
@@ -1039,10 +1055,11 @@ private fun KeyCap(
 @Composable
 fun FlappyScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
     var state by remember { mutableStateOf(FlappyBird.newGame()) }
+    var paused by remember { mutableStateOf(false) }
     val latest by rememberUpdatedState(state)
 
-    LaunchedEffect(state.started, state.dead) {
-        if (!state.started || state.dead) {
+    LaunchedEffect(state.started, state.dead, paused) {
+        if (!state.started || state.dead || paused) {
             if (state.dead) onScore(latest.score)
             return@LaunchedEffect
         }
@@ -1058,6 +1075,9 @@ fun FlappyScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
         score = state.score,
         best = best,
         onBack = { onScore(state.score); onBack() },
+        // Nothing to pause before the first tap or after the crash.
+        paused = if (state.dead || !state.started) null else paused,
+        onTogglePause = { paused = !paused },
         footer = {
             when {
                 state.dead -> GameOverBanner("Ouch") {
@@ -1065,6 +1085,7 @@ fun FlappyScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                     state = FlappyBird.newGame()
                 }
                 !state.started -> Text("TAP TO START", style = BitsText.PixelBody)
+                paused -> Text("PAUSED", style = BitsText.PixelBody.copy(color = Arcade.Glow))
                 else -> Text("TAP TO FLAP", style = BitsText.PixelBody)
             }
         },
@@ -1077,7 +1098,7 @@ fun FlappyScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 .padding(3.dp)
                 .background(Color(0xFF101D28))
                 .pointerInput(Unit) {
-                    detectTapGestures { if (!latest.dead) state = FlappyBird.flap(state) }
+                    detectTapGestures { if (!latest.dead && !paused) state = FlappyBird.flap(state) }
                 }
         ) {
             val w = size.width
@@ -1106,13 +1127,14 @@ fun FlappyScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
 @Composable
 fun BitrisScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
     var state by remember { mutableStateOf(Bitris.newGame()) }
+    var paused by remember { mutableStateOf(false) }
     val latest by rememberUpdatedState(state)
 
     // Gravity runs on its own clock. Player moves land straight on the state, so the
     // loop only ever has to pull the piece down one row at the current pace.
-    LaunchedEffect(state.dead) {
-        if (state.dead) {
-            onScore(latest.score)
+    LaunchedEffect(state.dead, paused) {
+        if (state.dead || paused) {
+            if (state.dead) onScore(latest.score)
             return@LaunchedEffect
         }
         while (true) {
@@ -1127,6 +1149,8 @@ fun BitrisScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
         score = state.score,
         best = best,
         onBack = { onScore(state.score); onBack() },
+        paused = if (state.dead) null else paused,
+        onTogglePause = { paused = !paused },
         footer = {
             if (state.dead) {
                 GameOverBanner("Well full") {
@@ -1135,9 +1159,13 @@ fun BitrisScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                    Text("TAP TURNS \u00B7 DRAG MOVES", style = BitsText.PixelBody)
-                    Spacer(Modifier.height(6.dp))
-                    Text("FLICK DOWN TO DROP", style = BitsText.PixelBody.copy(color = BitsColors.Muted))
+                    if (paused) {
+                        Text("PAUSED", style = BitsText.PixelBody.copy(color = Arcade.Glow))
+                    } else {
+                        Text("TAP TURNS \u00B7 DRAG MOVES", style = BitsText.PixelBody)
+                        Spacer(Modifier.height(6.dp))
+                        Text("FLICK DOWN TO DROP", style = BitsText.PixelBody.copy(color = BitsColors.Muted))
+                    }
                 }
             }
         },
@@ -1152,6 +1180,7 @@ fun BitrisScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                     .padding(3.dp)
                     .background(Color(0xFF0E1922))
                     .bitrisGestures(
+                        enabled = !paused,
                         onMove = { dx -> state = Bitris.move(state, dx) },
                         onSoftDrop = { state = Bitris.softDrop(state) },
                         onHardDrop = { state = Bitris.hardDrop(state) },
@@ -1245,11 +1274,15 @@ fun BitrisScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
  * out once the finger lifts, so the piece tracks the hand instead of jumping at the end.
  */
 private fun Modifier.bitrisGestures(
+    enabled: Boolean,
     onMove: (Int) -> Unit,
     onSoftDrop: () -> Unit,
     onHardDrop: () -> Unit,
     onRotate: () -> Unit,
-): Modifier = pointerInput(Unit) {
+): Modifier = pointerInput(enabled) {
+    // While paused the well takes no input at all, rather than queueing gestures up to
+    // be applied the moment play resumes.
+    if (!enabled) return@pointerInput
     // One column of travel moves one column; a row of travel guides it one row. Matching
     // the gesture to the grid is what makes the piece feel attached to the finger.
     val stepX = (size.width.toFloat() / Bitris.COLS).coerceAtLeast(1f)
@@ -1310,36 +1343,39 @@ private const val FLICK_LIMIT = 320L
 /** How far a finger may wander before the touch stops counting as a tap. */
 private const val SLOP = 14f
 
-/* -------------------------------- Spaca -------------------------------- */
+/* -------------------------------- Spasa -------------------------------- */
 
-private val spacaKindColours = listOf(
+private val spasaKindColours = listOf(
     Color(0xFF7FD68A),
     Color(0xFF5BD3D3),
     Color(0xFFCFA6FF),
 )
 
 @Composable
-fun SpacaScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
-    var state by remember { mutableStateOf(Spaca.newGame()) }
+fun SpasaScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
+    var state by remember { mutableStateOf(Spasa.newGame()) }
+    var paused by remember { mutableStateOf(false) }
     val latest by rememberUpdatedState(state)
 
-    LaunchedEffect(state.started, state.dead) {
-        if (!state.started || state.dead) {
+    LaunchedEffect(state.started, state.dead, paused) {
+        if (!state.started || state.dead || paused) {
             if (state.dead) onScore(latest.score)
             return@LaunchedEffect
         }
         while (true) {
             delay(16)
-            state = Spaca.step(state)
+            state = Spasa.step(state)
             if (latest.dead) break
         }
     }
 
     GameFrame(
-        title = "Spaca",
+        title = "Spasa",
         score = state.score,
         best = best,
         onBack = { onScore(state.score); onBack() },
+        paused = if (state.dead || !state.started) null else paused,
+        onTogglePause = { paused = !paused },
         footer = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1364,9 +1400,10 @@ fun SpacaScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 when {
                     state.dead -> GameOverBanner("Ship lost") {
                         onScore(state.score)
-                        state = Spaca.newGame()
+                        state = Spasa.newGame()
                     }
                     !state.started -> Text("TOUCH THE SKY TO LAUNCH", style = BitsText.PixelBody)
+                    paused -> Text("PAUSED", style = BitsText.PixelBody.copy(color = Arcade.Glow))
                     else -> Text("DRAG TO STEER \u00B7 GUNS ARE AUTO", style = BitsText.PixelBody)
                 }
             }
@@ -1382,13 +1419,14 @@ fun SpacaScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 // One gesture handler covers both jobs: the first touch launches, and the
                 // ship tracks the finger for as long as it stays down. Keeping it to a
                 // single detector avoids two handlers fighting over the same pointer.
-                .pointerInput(Unit) {
+                .pointerInput(paused) {
+                    if (paused) return@pointerInput
                     detectDragGestures(
                         onDragStart = { offset ->
-                            state = Spaca.steer(Spaca.start(state), offset.x / size.width)
+                            state = Spasa.steer(Spasa.start(state), offset.x / size.width)
                         },
                         onDrag = { change, _ ->
-                            state = Spaca.steer(state, change.position.x / size.width)
+                            state = Spasa.steer(state, change.position.x / size.width)
                             change.consume()
                         },
                     )
@@ -1396,7 +1434,7 @@ fun SpacaScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                ) { state = Spaca.start(state) }
+                ) { if (!paused) state = Spasa.start(state) }
         ) {
             val w = size.width
             val h = size.height
@@ -1411,26 +1449,26 @@ fun SpacaScreen(best: Int, onScore: (Int) -> Unit, onBack: () -> Unit) {
 
             // Drones: a blocky body with a brighter core, and a longer nose while diving.
             state.drones.forEach { drone ->
-                val (dx, dy) = Spaca.positionOf(state, drone)
-                val colour = spacaKindColours[drone.kind]
-                box(dx, dy, Spaca.DRONE_W, Spaca.DRONE_H * 0.55f, colour)
-                box(dx, dy, Spaca.DRONE_W * 0.42f, Spaca.DRONE_H, colour)
-                box(dx, dy, Spaca.DRONE_W * 0.20f, Spaca.DRONE_H * 0.38f, Color(0xFF080D14))
+                val (dx, dy) = Spasa.positionOf(state, drone)
+                val colour = spasaKindColours[drone.kind]
+                box(dx, dy, Spasa.DRONE_W, Spasa.DRONE_H * 0.55f, colour)
+                box(dx, dy, Spasa.DRONE_W * 0.42f, Spasa.DRONE_H, colour)
+                box(dx, dy, Spasa.DRONE_W * 0.20f, Spasa.DRONE_H * 0.38f, Color(0xFF080D14))
                 if (drone.diving) {
-                    box(dx, dy + Spaca.DRONE_H * 0.55f, Spaca.DRONE_W * 0.18f, Spaca.DRONE_H * 0.4f, Arcade.Glow)
+                    box(dx, dy + Spasa.DRONE_H * 0.55f, Spasa.DRONE_W * 0.18f, Spasa.DRONE_H * 0.4f, Arcade.Glow)
                 }
             }
 
-            state.bombs.forEach { box(it.x, it.y, Spaca.SHOT_W, Spaca.SHOT_H, Color(0xFFE8907F)) }
-            state.shots.forEach { box(it.x, it.y, Spaca.SHOT_W, Spaca.SHOT_H, Arcade.Glow) }
+            state.bombs.forEach { box(it.x, it.y, Spasa.SHOT_W, Spasa.SHOT_H, Color(0xFFE8907F)) }
+            state.shots.forEach { box(it.x, it.y, Spasa.SHOT_W, Spasa.SHOT_H, Arcade.Glow) }
 
             // The ship blinks through its grace period so a fresh life is obvious.
             val visible = state.grace == 0 || (state.grace / 6) % 2 == 0
             if (visible) {
                 val ink = Color(0xFFEAE6DA)
-                box(state.shipX, Spaca.SHIP_Y, Spaca.SHIP_W, Spaca.SHIP_H * 0.45f, ink)
-                box(state.shipX, Spaca.SHIP_Y - Spaca.SHIP_H * 0.28f, Spaca.SHIP_W * 0.34f, Spaca.SHIP_H * 0.6f, ink)
-                box(state.shipX, Spaca.SHIP_Y + Spaca.SHIP_H * 0.30f, Spaca.SHIP_W * 0.72f, Spaca.SHIP_H * 0.3f, Arcade.Glow)
+                box(state.shipX, Spasa.SHIP_Y, Spasa.SHIP_W, Spasa.SHIP_H * 0.45f, ink)
+                box(state.shipX, Spasa.SHIP_Y - Spasa.SHIP_H * 0.28f, Spasa.SHIP_W * 0.34f, Spasa.SHIP_H * 0.6f, ink)
+                box(state.shipX, Spasa.SHIP_Y + Spasa.SHIP_H * 0.30f, Spasa.SHIP_W * 0.72f, Spasa.SHIP_H * 0.3f, Arcade.Glow)
             }
         }
     }

@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- Stepped in blocks rather than drawn as a smooth triangle, to match the
+         other pixel icons at every density. -->
+    <path android:fillColor="#F2B544" android:pathData="M6,3h3v18h-3z" />
+    <path android:fillColor="#F2B544" android:pathData="M9,6h3v12h-3z" />
+    <path android:fillColor="#F2B544" android:pathData="M12,9h3v6h-3z" />
+    <path android:fillColor="#F2B544" android:pathData="M15,11h3v2h-3z" />
+</vector>

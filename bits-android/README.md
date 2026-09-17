@@ -2,6 +2,44 @@
 
 Your external brain, living on your home screen. Android v1.2.1.
 
+## New in v1.6
+
+**Chess.** Full rules, nothing left out: castling on both sides with all the conditions,
+en passant, promotion with a choice of piece, check, checkmate, stalemate, the fifty-move
+rule, threefold repetition and dead positions. Play a person sitting next to you, or the
+machine. Tap a piece and its legal squares light up - a dot on an empty square, corner
+marks on a piece you can take - so the rules are visible rather than something you have
+to already know.
+
+The pieces are pixel art drawn on a ten-by-ten grid rather than set in a font, which is
+the only way to get a shape that is unmistakably a knight at the size a phone square
+gives you while still being built from visible pixels. Each sprite is outlined in the
+opposite shade, so white pieces read on light squares and black on dark. The board keeps
+a wash on the last move played and on a king in check.
+
+The rules are verified against the published node counts for the six standard test
+positions at depth four and five, about sixteen million positions in total, which is how
+a chess move generator is proved correct rather than merely plausible. The opponent looks
+three moves ahead with alpha-beta pruning and thinks on a background thread, so the board
+never freezes; it is a fair game rather than a strong one.
+
+**Pause and resume** on the four games that run on a clock: Snake, Flappy, Spasa and
+Bitris. The button sits in the header and turns into a play arrow while stopped. The
+clock stops, and the game takes no input at all while paused rather than queueing
+gestures up to fire the moment you resume. The turn-based games don't have one, since
+there is nothing running to stop.
+
+**The widget reacts immediately when you tick something off.** Two separate delays were
+in the way. A tap on the widget was saving the whole file to disk before repainting,
+though both the app and the widget read the in-memory state, so the tick could always
+have been drawn first - the save now happens after the repaint, inside the same call, so
+nothing is at risk. And ticking something off in the app waited 300ms before touching the
+widget, which is long enough to notice; that is now 80ms, still enough to collapse a
+burst of edits into one repaint.
+
+**Spaca is now Spasa** everywhere. Its high score is stored under a new key, so an
+existing best from testing starts over.
+
 ## New in v1.5.1
 
 **Category rows, reworked.** A pixel pencil now sits beside each list and opens the
@@ -29,7 +67,7 @@ sideways for a moment before it sets.
 
 **Two new games, bringing the hub to eight.**
 
-- **Spaca** - a fixed shooter. A formation of drones sways overhead, peels off to dive at
+- **Spasa** - a fixed shooter. A formation of drones sways overhead, peels off to dive at
   you, and drops bombs on the way down. Drag to steer; the guns fire themselves, so there
   is no gesture competing with the steering. Divers are worth double, every third wave
   hands back a life, and a hit costs one life with a blinking grace period after it.
@@ -40,7 +78,7 @@ sideways for a moment before it sets.
 The falling-block and fixed-shooter *rules* are not anyone's property, but the arcade
 originals' look and names are, so neither is borrowed. Bitris deliberately avoids the
 familiar seven four-block pieces - three of its shapes are three-block pieces and the
-mirrored pair is left out - and the well is eighteen rows, in Bits' own palette. Spaca's
+mirrored pair is left out - and the well is eighteen rows, in Bits' own palette. Spasa's
 attackers are plain blocks rather than insects, and there is no capture-and-rescue trick.
 
 Both games slot in exactly like the existing six: same card in the hub, same arcade frame,
