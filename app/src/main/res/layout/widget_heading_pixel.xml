@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A category heading in the pixel face.
+
+     This used to be a TextView with android:fontFamily="@font/press_start_2p". Widget
+     layouts are inflated by the launcher rather than by Bits, and a launcher is free to
+     ignore an app font and fall back to its own sans-serif, which is exactly what made
+     these headings come out plain.
+
+     An image cannot be substituted that way, so the heading is drawn into a bitmap by
+     PixelHeading and handed over already wearing the right face. -->
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/pixel_heading"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:adjustViewBounds="true"
+    android:scaleType="fitStart" />

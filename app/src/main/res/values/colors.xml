@@ -1,0 +1,5 @@
+<resources>
+    <color name="bits_bg">#16202B</color>
+    <!-- Cream tile behind the pixel creature, so the purple and black read clearly. -->
+    <color name="ic_launcher_background">#F1EDE2</color>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sliders, the usual "customise" affordance, drawn blocky to match the pixel styling.
+     Two tracks with a handle sitting at a different position on each. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:fillColor="#8A95A3" android:pathData="M3,7h18v2h-18z" />
+    <path android:fillColor="#8A95A3" android:pathData="M3,15h18v2h-18z" />
+    <path android:fillColor="#8A95A3" android:pathData="M7,4h4v8h-4z" />
+    <path android:fillColor="#8A95A3" android:pathData="M14,12h4v8h-4z" />
+</vector>

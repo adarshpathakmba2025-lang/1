@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- A square-cornered loop with a blocky arrowhead, drawn cell by cell. -->
+    <path android:fillColor="#F2B544" android:pathData="M7,4h10v3h-10z" />
+    <path android:fillColor="#F2B544" android:pathData="M17,4h3v7h-3z" />
+    <path android:fillColor="#F2B544" android:pathData="M4,13h3v7h-3z" />
+    <path android:fillColor="#F2B544" android:pathData="M7,17h10v3h-10z" />
+    <path android:fillColor="#F2B544" android:pathData="M4,7h3v3h-3z" />
+    <path android:fillColor="#F2B544" android:pathData="M7,7h3v3h-3z" />
+    <path android:fillColor="#F2B544" android:pathData="M14,14h3v3h-3z" />
+    <path android:fillColor="#F2B544" android:pathData="M17,14h3v3h-3z" />
+    <path android:fillColor="#F2B544" android:pathData="M14,20h3v3h-3z" />
+    <path android:fillColor="#F2B544" android:pathData="M20,11h3v3h-3z" />
+</vector>
