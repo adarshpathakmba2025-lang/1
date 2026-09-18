@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -55,6 +57,11 @@ import kotlinx.coroutines.withContext
  */
 
 private enum class ChessMode { PASS_AND_PLAY, VS_COMPUTER }
+
+/** The four pieces a pawn may become. Shared by the real picker and its footer twin. */
+private val PROMOTION_CHOICES = listOf(
+    QUEEN to "Queen", ROOK to "Rook", BISHOP to "Bishop", KNIGHT to "Knight",
+)
 
 /** '#' is the piece, anything else is see-through. Ten rows of ten. */
 private val PAWN_SPRITE = listOf(
@@ -215,23 +222,30 @@ fun ChessScreen(wins: Int, onWin: (Int) -> Unit, onBack: () -> Unit) {
         leftLabel = "MOVE",
         rightLabel = "WINS",
         footer = {
+            // Only the two states below - no piece picked up, or one picked up - change
+            // on every single tap during ordinary play, so only those two are held to a
+            // fixed height. Promotion and the end-of-game banner are rare or terminal;
+            // letting the board shift a little for either of those is no annoyance, and
+            // trying to reserve space for the promotion grid too is what caused the
+            // previous bug: a hand-measured stand-in for its buttons came out a few dp
+            // short of the real ones, and the real grid got squeezed to match, pushing
+            // its bottom row past the edge of the screen.
+            //
+            // The fix here reuses one composable for both the invisible reservation and
+            // the real content, so their sizes cannot drift apart the way hand-matching
+            // two separate layouts did: the ghost simply calls it with the longest
+            // strings play produces, which is guaranteed to be at least as tall as
+            // whatever the real call ends up showing.
             Column(Modifier.fillMaxWidth()) {
                 when {
                     mode == null -> Unit
 
                     promoting != null -> {
-                        Text("PROMOTE TO", style = BitsText.PixelBody.copy(color = Arcade.Glow))
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val (from, to) = promoting!!
-                            listOf(QUEEN to "Queen", ROOK to "Rook", BISHOP to "Bishop", KNIGHT to "Knight")
-                                .forEach { (type, label) ->
-                                    PixelButton(label) {
-                                        val move = Chess.movesFrom(state, from)
-                                            .firstOrNull { it.to == to && it.promotion == type }
-                                        if (move != null) play(move)
-                                    }
-                                }
+                        val (fromSquare, toSquare) = promoting!!
+                        PromotionPicker { type ->
+                            val move = Chess.movesFrom(state, fromSquare)
+                                .firstOrNull { it.to == toSquare && it.promotion == type }
+                            if (move != null) play(move)
                         }
                     }
 
@@ -240,17 +254,40 @@ fun ChessScreen(wins: Int, onWin: (Int) -> Unit, onBack: () -> Unit) {
                     else -> {
                         val turn = if (state.whiteToMove) "WHITE" else "BLACK"
                         val check = if (inCheck) " \u00B7 CHECK" else ""
-                        Text(
-                            text = if (thinking) "THINKING" else "$turn TO MOVE$check",
-                            style = BitsText.PixelBody.copy(
-                                color = if (check.isNotEmpty()) Arcade.Glow else BitsColors.Ink,
-                            ),
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = if (selected == null) "TAP A PIECE TO SEE ITS MOVES" else "TAP A MARKED SQUARE",
-                            style = BitsText.PixelBody.copy(color = BitsColors.Muted),
-                        )
+                        val turnLine = if (thinking) "THINKING" else "$turn TO MOVE$check"
+                        val held = selected?.let { state.board[it] }
+                        val heldLine = if (held != null && held != NO_PIECE) {
+                            "${if (isWhitePiece(held)) "WHITE" else "BLACK"} ${pieceName(pieceType(held))}"
+                        } else {
+                            null
+                        }
+                        val hintLine = when {
+                            heldLine == null -> "TAP A PIECE TO SEE ITS MOVES"
+                            options.isEmpty() -> "NO LEGAL MOVES"
+                            else -> "TAP A MARKED SQUARE"
+                        }
+
+                        Box {
+                            // A hidden longest-case call establishes the height; the
+                            // real call underneath is always the same size or smaller,
+                            // so it can never be squeezed and never needs to overflow.
+                            Box(Modifier.alpha(0f)) {
+                                TurnStatus(
+                                    turnLine = "BLACK TO MOVE \u00B7 CHECK",
+                                    heldLine = "WHITE KNIGHT",
+                                    hintLine = "TAP A MARKED SQUARE",
+                                    checkColor = false,
+                                )
+                            }
+                            Box(Modifier.matchParentSize()) {
+                                TurnStatus(
+                                    turnLine = turnLine,
+                                    heldLine = heldLine,
+                                    hintLine = hintLine,
+                                    checkColor = check.isNotEmpty(),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -430,6 +467,75 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawSprite(
             }
         }
     }
+}
+
+@Composable
+private fun TurnStatus(turnLine: String, heldLine: String?, hintLine: String, checkColor: Boolean) {
+    // Wrapped in its own Column deliberately: this is called from inside a plain Box
+    // twice over (the invisible reservation and the real content beside it), and a Box
+    // does not stack its children the way a Column does - it lays each one on top of
+    // the others at the same position. Without this Column of its own, every line here
+    // would print directly on top of every other line the moment the parent stopped
+    // being a Column, which is exactly the garbled overlapping text this fixes.
+    Column(Modifier.fillMaxWidth()) {
+        // Pinned to one line each: on an ordinary phone none of these strings are long
+        // enough to wrap anyway, but a very large accessibility font size could force a
+        // wrap, and a wrap is exactly the kind of height change this whole footer
+        // exists to rule out. Truncating instead is the safer failure.
+        Text(
+            text = turnLine,
+            style = BitsText.PixelBody.copy(color = if (checkColor) Arcade.Glow else BitsColors.Ink),
+            maxLines = 1,
+            softWrap = false,
+        )
+        Spacer(Modifier.height(6.dp))
+        if (heldLine != null) {
+            // Say out loud what has been picked up. The sprites are small, so naming
+            // the piece saves squinting at it - and it confirms the tap landed on the
+            // square that was meant.
+            Text(text = heldLine, style = BitsText.PixelBody.copy(color = Arcade.Glow), maxLines = 1, softWrap = false)
+            Spacer(Modifier.height(4.dp))
+        }
+        Text(text = hintLine, style = BitsText.PixelBody.copy(color = BitsColors.Muted), maxLines = 1, softWrap = false)
+    }
+}
+
+/** The live promotion grid: two rows of two, each button calling [onChoose]. */
+@Composable
+private fun PromotionPicker(onChoose: (Int) -> Unit) {
+    // Self-contained for the same reason as TurnStatus above: whatever ends up calling
+    // this should not need to know or care that it happens to require vertical
+    // stacking to look right.
+    Column(Modifier.fillMaxWidth()) {
+        Text("PROMOTE TO", style = BitsText.PixelBody.copy(color = Arcade.Glow))
+        Spacer(Modifier.height(8.dp))
+        // Two rows of two rather than one row of four. At nine points the pixel face
+        // makes "KNIGHT" about eighty-six dp wide, which does not fit in a quarter of a
+        // phone's width, so it broke across two lines. Half the width fits every name
+        // easily, and sharing each row equally makes all four the same size.
+        PROMOTION_CHOICES.chunked(2).forEach { pair ->
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                pair.forEach { (type, label) ->
+                    PixelButton(label = label, modifier = Modifier.weight(1f), fillWidth = true) {
+                        onChoose(type)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun pieceName(type: Int): String = when (type) {
+    PAWN -> "PAWN"
+    KNIGHT -> "KNIGHT"
+    BISHOP -> "BISHOP"
+    ROOK -> "ROOK"
+    QUEEN -> "QUEEN"
+    KING -> "KING"
+    else -> ""
 }
 
 private fun outcomeText(outcome: ChessOutcome): String = when (outcome) {

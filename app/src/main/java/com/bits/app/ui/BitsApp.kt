@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,7 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.bits.app.billing.PlayProStore
 import com.bits.app.data.BitsRepository
+import com.bits.app.data.FreeStore
+import com.bits.app.data.findActivity
+import com.bits.app.data.Monetization
+import com.bits.app.data.ProPlan
+import com.bits.app.data.ProStore
 import com.bits.app.data.TODAY_ID
 import com.bits.app.data.ClockStyles
 import com.bits.app.data.WidgetThemes
@@ -68,6 +75,24 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
     val repository = remember { BitsRepository.get(context) }
     val state by repository.state.collectAsState()
     val targets = remember { TutorialTargets() }
+
+    // The only line in the app outside the billing package that names PlayProStore. If
+    // that file ever fails to build against a new Billing version, replacing this whole
+    // block with `val proStore: ProStore = FreeStore` restores a working app, minus the
+    // ability to sell anything.
+    val proStore: ProStore = remember {
+        if (Monetization.ENABLED) {
+            PlayProStore(context) { isPro, plan -> repository.applyEntitlement(isPro, plan) }
+        } else {
+            FreeStore
+        }
+    }
+    // Held open only while the app is on screen; Play's connection is not free to keep.
+    DisposableEffect(proStore) {
+        proStore.start()
+        onDispose { proStore.stop() }
+    }
+    val offers by proStore.offers.collectAsState()
 
     var screen by rememberSaveable { mutableStateOf(Screen.Home) }
     // Where the Pro page was opened from, so backing out of it returns there instead of
@@ -234,7 +259,19 @@ fun BitsApp(launchRequest: LaunchRequest?, onLaunchHandled: () -> Unit) {
                         Screen.Paywall -> PaywallScreen(
                             state = current,
                             onBack = { screen = paywallOrigin },
-                            onPurchase = { toast = "Payments aren't switched on yet." },
+                            offers = offers,
+                            onPurchase = { plan ->
+                                val activity = context.findActivity()
+                                val productId = when (plan) {
+                                    ProPlan.MONTHLY -> Monetization.MONTHLY_PRODUCT_ID
+                                    else -> Monetization.LIFETIME_PRODUCT_ID
+                                }
+                                if (activity == null) {
+                                    toast = "Couldn't open Google Play."
+                                } else {
+                                    proStore.purchase(activity, productId)
+                                }
+                            },
                         )
 
                         Screen.GamesHub -> GamesHubScreen(

@@ -16,3 +16,10 @@
 
 # Action callbacks are looked up by class name by Glance.
 -keep class com.bits.app.widget.ToggleItemAction { *; }
+
+# Play Billing. The library ships its own consumer rules, so this is belt and braces for
+# the classes R8 can't see being used while Monetization.ENABLED is false - without it,
+# a release build could strip the billing code as dead, and switching Pro on later would
+# fail only in release, which is the worst place to find out.
+-keep class com.bits.app.billing.** { *; }
+-keep class com.bits.app.data.Monetization { *; }

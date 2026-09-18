@@ -55,9 +55,11 @@ data class Preferences(
     val autoClearCompleted: Boolean,
     val tutorialSeen: Boolean,
     /**
-     * Whether Pro perks (extra games, widget themes, clock styles) are unlocked.
-     * This will be set by a verified Play Billing purchase once billing is wired up.
-     * Until then it can only be flipped by the "Simulate Pro" developer switch in Settings.
+     * Whether this account has bought Pro, as told to us by Play Billing.
+     *
+     * Note this is ownership, not access: while [Monetization.ENABLED] is false nobody
+     * owns anything and everybody has everything. Read [BitsState.proUnlocked] to decide
+     * whether a perk is available - never this flag on its own.
      */
     val isPro: Boolean,
     /**
@@ -108,6 +110,16 @@ data class Preferences(
     val hintPoints: Int,
     /** Positions bought with hint points for today's puzzle. */
     val wordleRevealed: Set<Int>,
+    /**
+     * True for anyone who installed Bits while it was free.
+     *
+     * Written from the very first release even though nothing charges yet, because this
+     * cannot be reconstructed afterwards: once Pro costs money, there is no way to tell
+     * who had been using the app since before it did. See
+     * [Monetization.GRANDFATHER_EARLY_USERS], which decides whether they keep their
+     * perks. Defaulted, so older saved files load untouched.
+     */
+    val foundingUser: Boolean = false,
 ) {
     companion object {
         val Default = Preferences(
@@ -164,11 +176,28 @@ data class BitsState(
     fun categoriesFor(settings: WidgetSettings): List<Category> =
         sortedCategories.filter { it.id !in settings.hiddenCategoryIds }
 
+    /**
+     * Whether Pro perks are available to this person right now.
+     *
+     * Every gate below reads this and none reads [Preferences.isPro] directly, so there
+     * is exactly one place that decides, and switching Pro on later is a change to
+     * [Monetization] rather than a hunt through the app.
+     *
+     * Three ways to have everything:
+     *  - Bits isn't charging for anything yet, so nothing is locked for anyone.
+     *  - They bought it.
+     *  - They were here before Bits started charging, and get to keep what they had.
+     */
+    val proUnlocked: Boolean
+        get() = !Monetization.ENABLED ||
+            preferences.isPro ||
+            (Monetization.GRANDFATHER_EARLY_USERS && preferences.foundingUser)
+
     /** Settings for one placed widget: its own board if it has one, otherwise the shared config. */
     fun settingsFor(appWidgetId: Int): WidgetSettings =
-        if (preferences.isPro) boards[appWidgetId] ?: widget else widget
+        if (proUnlocked) boards[appWidgetId] ?: widget else widget
 
-    fun hasOwnBoard(appWidgetId: Int): Boolean = preferences.isPro && boards.containsKey(appWidgetId)
+    fun hasOwnBoard(appWidgetId: Int): Boolean = proUnlocked && boards.containsKey(appWidgetId)
 
     /** The theme a given widget draws with, honouring a board override when it's allowed. */
     fun themeFor(settings: WidgetSettings): WidgetTheme {
@@ -189,19 +218,19 @@ data class BitsState(
     /** Free, bought with Pro, or claimed through the easter egg. */
     fun canUseTheme(themeId: String): Boolean {
         val theme = WidgetThemes.find(themeId)
-        return theme.free || preferences.isPro || themeId in preferences.bonusThemeIds
+        return theme.free || proUnlocked || themeId in preferences.bonusThemeIds
     }
 
     fun canUseClockStyle(styleId: String): Boolean =
-        ClockStyles.find(styleId).free || preferences.isPro || styleId in preferences.bonusClockIds
+        ClockStyles.find(styleId).free || proUnlocked || styleId in preferences.bonusClockIds
 
     /** The pixel-heading look: Pro, or claimed through the easter egg. */
     val canUsePixelHeadings: Boolean
-        get() = preferences.isPro || preferences.bonusPixelHeadings
+        get() = proUnlocked || preferences.bonusPixelHeadings
 
     /** Games are identified by the keys in the UI's GameId list. */
     fun canPlayGame(gameId: String, free: Boolean): Boolean =
-        free || preferences.isPro || gameId in preferences.bonusGameIds
+        free || proUnlocked || gameId in preferences.bonusGameIds
 
     /** The theme actually drawn, falling back to Classic if a Pro theme is no longer available. */
     val activeTheme: WidgetTheme

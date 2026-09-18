@@ -129,6 +129,15 @@ class BitsRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Records what Play says this account owns.
+     *
+     * Stored rather than asked for each time, so perks keep working on a plane or a dead
+     * signal. Play is asked again on the next launch that can reach it, and a failed ask
+     * never revokes anything - see PlayProStore.
+     */
+    fun applyEntitlement(isPro: Boolean, plan: String) = edit { it.withPro(isPro, plan) }
+
     fun simulateMidnight() = edit { Rollover.apply(it.copy(lastRollover = "simulated"), today()) }
 
     /** Restores the starter content. Opacity, clock and preferences are kept. */

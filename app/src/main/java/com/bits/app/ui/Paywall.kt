@@ -40,6 +40,8 @@ import androidx.compose.ui.window.Dialog
 import com.bits.app.R
 import androidx.compose.ui.platform.LocalContext
 import com.bits.app.data.BitsState
+import com.bits.app.data.Monetization
+import com.bits.app.data.ProOffer
 import com.bits.app.data.ProPlan
 import com.bits.app.ui.theme.BitsColors
 import com.bits.app.ui.theme.BitsText
@@ -124,10 +126,29 @@ private val perks = listOf(
 )
 
 @Composable
-fun PaywallScreen(state: BitsState, onBack: () -> Unit, onPurchase: () -> Unit) {
-    var selectedPlan by remember { mutableStateOf("lifetime") }
+fun PaywallScreen(
+    state: BitsState,
+    onBack: () -> Unit,
+    /** Which plan to buy. Only ever called while Pro is actually on sale. */
+    onPurchase: (plan: String) -> Unit,
+    /**
+     * Live plans from Play, with the prices this person's country actually shows. Empty
+     * while Bits is free, or before Play has answered - the hardcoded prices below are
+     * the fallback for that second case only.
+     */
+    offers: List<ProOffer> = emptyList(),
+) {
+    var selectedPlan by remember { mutableStateOf(ProPlan.LIFETIME) }
     var note by remember { mutableStateOf(false) }
-    val isPro = state.preferences.isPro
+
+    // Whether this person paid, which is what earns the thank-you. Distinct from having
+    // the perks: while Bits is free, everyone has them and nobody has paid.
+    val bought = state.preferences.isPro
+    // Nothing to sell, so the page is a thank-you and a note rather than a shop.
+    val forSale = Monetization.ENABLED && !bought
+
+    fun priceFor(plan: String, fallback: String): String =
+        offers.firstOrNull { it.plan == plan }?.formattedPrice ?: fallback
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -150,12 +171,20 @@ fun PaywallScreen(state: BitsState, onBack: () -> Unit, onPurchase: () -> Unit) 
                 .padding(horizontal = 22.dp)
         ) {
             Text(
-                text = if (isPro) "You're Pro" else "Bits Pro",
+                text = when {
+                    bought -> "You're Pro"
+                    !Monetization.ENABLED -> "Bits is free"
+                    else -> "Bits Pro"
+                },
                 style = BitsText.Small.copy(color = BitsColors.Amber),
                 modifier = Modifier.padding(bottom = 6.dp),
             )
             Text(
-                text = if (isPro) "Everything's unlocked.\nThank you." else "Everything in Bits,\nunlocked for good.",
+                text = when {
+                    bought -> "Everything's unlocked.\nThank you."
+                    !Monetization.ENABLED -> "Everything's unlocked,\nfor everyone."
+                    else -> "Everything in Bits,\nunlocked for good."
+                },
                 style = BitsText.Title,
             )
 
@@ -179,30 +208,39 @@ fun PaywallScreen(state: BitsState, onBack: () -> Unit, onPurchase: () -> Unit) 
                 }
             }
 
-            if (!isPro) {
+            if (forSale) {
                 Spacer(Modifier.height(4.dp))
                 PlanCard(
                     title = "Lifetime",
-                    price = "\u20b9229",
+                    price = priceFor(ProPlan.LIFETIME, "\u20b9229"),
                     caption = "Pay once. Yours forever.",
                     badge = "BEST VALUE",
-                    selected = selectedPlan == "lifetime",
-                    onClick = { selectedPlan = "lifetime" },
+                    selected = selectedPlan == ProPlan.LIFETIME,
+                    onClick = { selectedPlan = ProPlan.LIFETIME },
                 )
                 Spacer(Modifier.height(10.dp))
                 PlanCard(
                     title = "Monthly",
-                    price = "\u20b949",
+                    price = priceFor(ProPlan.MONTHLY, "\u20b949"),
                     caption = "Billed monthly. Cancel any time.",
                     badge = null,
-                    selected = selectedPlan == "monthly",
-                    onClick = { selectedPlan = "monthly" },
+                    selected = selectedPlan == ProPlan.MONTHLY,
+                    onClick = { selectedPlan = ProPlan.MONTHLY },
+                )
+            }
+
+            if (!Monetization.ENABLED && !bought) {
+                Text(
+                    text = "Bits is free while it's young. Every perk above is already yours, " +
+                        "and if Pro ever starts costing something, it stays yours.",
+                    style = BitsText.Small.copy(color = BitsColors.Muted),
+                    modifier = Modifier.padding(top = 14.dp),
                 )
             }
 
             if (note) {
                 Text(
-                    text = "Payments aren't switched on yet \u2014 this page is a preview of what's coming.",
+                    text = "Couldn't reach Google Play. Check your connection and try again.",
                     style = BitsText.Small.copy(color = BitsColors.Muted),
                     modifier = Modifier.padding(top = 14.dp),
                 )
@@ -233,7 +271,7 @@ fun PaywallScreen(state: BitsState, onBack: () -> Unit, onPurchase: () -> Unit) 
             Spacer(Modifier.height(20.dp))
         }
 
-        if (!isPro) {
+        if (forSale) {
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -241,14 +279,18 @@ fun PaywallScreen(state: BitsState, onBack: () -> Unit, onPurchase: () -> Unit) 
                     .padding(horizontal = 22.dp, vertical = 16.dp)
             ) {
                 Text(
-                    text = if (selectedPlan == "lifetime") "ONE-TIME \u00b7 YOURS FOREVER" else "MONTHLY \u00b7 CANCEL ANY TIME",
+                    text = if (selectedPlan == ProPlan.LIFETIME) "ONE-TIME \u00b7 YOURS FOREVER" else "MONTHLY \u00b7 CANCEL ANY TIME",
                     style = BitsText.Small.copy(color = BitsColors.Muted),
                     modifier = Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center,
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = if (selectedPlan == "lifetime") "Get Lifetime \u2014 \u20b9229" else "Start Monthly \u2014 \u20b949",
+                    text = if (selectedPlan == ProPlan.LIFETIME) {
+                        "Get Lifetime \u2014 ${priceFor(ProPlan.LIFETIME, "\u20b9229")}"
+                    } else {
+                        "Start Monthly \u2014 ${priceFor(ProPlan.MONTHLY, "\u20b949")}"
+                    },
                     style = BitsText.BodyBold.copy(color = BitsColors.Bg),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
@@ -256,8 +298,10 @@ fun PaywallScreen(state: BitsState, onBack: () -> Unit, onPurchase: () -> Unit) 
                         .clip(RoundedCornerShape(12.dp))
                         .background(BitsColors.Amber)
                         .clickable {
-                            note = true
-                            onPurchase()
+                            // Play answering with no offers means the connection or the
+                            // product setup is broken; say so rather than opening
+                            // nothing and looking frozen.
+                            if (offers.isEmpty()) note = true else onPurchase(selectedPlan)
                         }
                         .padding(vertical = 15.dp),
                 )

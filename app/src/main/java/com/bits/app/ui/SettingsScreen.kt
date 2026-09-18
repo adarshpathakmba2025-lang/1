@@ -63,6 +63,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableIntStateOf
 import kotlinx.coroutines.launch
 import com.bits.app.data.BitsRepository
+import com.bits.app.data.Monetization
 import com.bits.app.data.WidgetSettings
 import com.bits.app.data.ProPlan
 import com.bits.app.data.WidgetTheme
@@ -328,7 +329,10 @@ private fun AddWidgetButton() {
 
 @Composable
 fun ProBanner(state: BitsState, onOpenPaywall: () -> Unit) {
-    val isPro = state.preferences.isPro
+    // Three states, not two. While Bits isn't charging, "Upgrade to Pro - from Rs229"
+    // would be advertising a price for things the person already has and cannot buy.
+    val bought = state.preferences.isPro
+    val isPro = state.proUnlocked
     Row(
         Modifier
             .padding(top = 6.dp)
@@ -350,11 +354,19 @@ fun ProBanner(state: BitsState, onOpenPaywall: () -> Unit) {
         }
         Column(Modifier.weight(1f).padding(start = 14.dp)) {
             Text(
-                text = if (isPro) "You're Pro \u2014 thank you" else "Upgrade to Pro",
+                text = when {
+                    bought -> "You're Pro \u2014 thank you"
+                    !Monetization.ENABLED -> "Everything's unlocked"
+                    else -> "Upgrade to Pro"
+                },
                 style = BitsText.Subtitle.copy(color = if (isPro) BitsColors.Ink else BitsColors.Amber),
             )
             Text(
-                text = if (isPro) "See everything you've unlocked" else "Games, themes, widget lists \u00b7 from \u20b9229",
+                text = when {
+                    bought -> "See everything you've unlocked"
+                    !Monetization.ENABLED -> "Every game, theme and widget list, free"
+                    else -> "Games, themes, widget lists \u00b7 from \u20b9229"
+                },
                 style = BitsText.Small,
                 modifier = Modifier.padding(top = 2.dp),
             )
@@ -416,7 +428,7 @@ fun WidgetListsSection(
         }
 
         // Without Pro every widget shares one look, so one card covers them all.
-        !state.preferences.isPro -> {
+        !state.proUnlocked -> {
             WidgetCard(
                 title = if (ids.size == 1) "Your widget" else "All ${ids.size} widgets",
                 subtitle = if (ids.size == 1) null else "They share one list and look",

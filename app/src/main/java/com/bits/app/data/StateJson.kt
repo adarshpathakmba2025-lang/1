@@ -64,6 +64,7 @@ internal object StateJson {
                     .put("autoClearCompleted", state.preferences.autoClearCompleted)
                     .put("tutorialSeen", state.preferences.tutorialSeen)
                     .put("isPro", state.preferences.isPro)
+                    .put("foundingUser", state.preferences.foundingUser)
                     .put("proPlan", state.preferences.proPlan)
                     .put("widgetThemeId", state.preferences.widgetThemeId)
                     .put("clockStyleId", state.preferences.clockStyleId)
@@ -197,6 +198,10 @@ internal object StateJson {
             autoClearCompleted = json.optBoolean("autoClearCompleted", false),
             tutorialSeen = json.optBoolean("tutorialSeen", false),
             isPro = json.optBoolean("isPro", false),
+            // Absent means this file was written by a build that predates the flag, and
+            // every such build was a free one - so its owner is a founding user. New
+            // installs get the value Seed decides instead.
+            foundingUser = json.optBoolean("foundingUser", true),
             proPlan = json.optString("proPlan", if (json.optBoolean("isPro", false)) ProPlan.LIFETIME else ProPlan.NONE),
             widgetThemeId = json.optString("widgetThemeId", WidgetThemes.Classic.id),
             clockStyleId = json.optString("clockStyleId", ClockStyle.MINIMAL),

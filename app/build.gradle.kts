@@ -15,8 +15,12 @@ android {
         applicationId = "com.bits.todoandgames"
         minSdk = 26
         targetSdk = 36
-        versionCode = 22
-        versionName = "1.4.1"
+        // Bumped to match everything shipped since 1.4.1: Bitris, Spasa, Chess, pause
+        // controls, the widget responsiveness fix, and the chess footer fixes. Every
+        // Play Store upload needs a versionCode strictly higher than the last one it
+        // accepts, so this has to move before the first real release goes up.
+        versionCode = 25
+        versionName = "1.8"
     }
 
     // A fixed debug key, so each new build installs over the previous one
@@ -107,5 +111,13 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     // Google Play Billing, for the one-time Lifetime purchase and the monthly plan.
-    implementation("com.android.billingclient:billing-ktx:7.1.1")
+    //
+    // Must stay on 8.x or newer: Play stopped accepting uploads built against Billing 7
+    // on 31 August 2026, and version 8 is required until 31 August 2027. This is checked
+    // at upload time against the library bundled in the AAB, so it applies even while
+    // Monetization.ENABLED is false and nothing is actually for sale.
+    //
+    // The plain artifact rather than billing-ktx: PlayProStore uses the callback API
+    // throughout and needs none of the coroutine extensions.
+    implementation("com.android.billingclient:billing:8.0.0")
 }

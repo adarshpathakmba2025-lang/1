@@ -27,7 +27,10 @@ object Seed {
             // Grocery list starts hidden, so new users see how the widget toggle works.
             widget = WidgetSettings.Default.copy(hiddenCategoryIds = setOf(GROCERY_ID)),
             boards = emptyMap(),
-            preferences = Preferences.Default,
+            // A fresh install counts as a founding user for exactly as long as Bits
+            // isn't charging for anything. Once Pro goes live this evaluates false, so
+            // new arrivals buy it like anyone else while earlier installs keep theirs.
+            preferences = Preferences.Default.copy(foundingUser = !Monetization.ENABLED),
         )
     }
 }

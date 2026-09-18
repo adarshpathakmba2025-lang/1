@@ -251,7 +251,9 @@ fun BitsState.setShownOnWidget(categoryId: String, shown: Boolean): BitsState {
 
 /** Per-board editing. Creating a board copies the shared settings so nothing jumps visually. */
 fun BitsState.editBoard(appWidgetId: Int, transform: (WidgetSettings) -> WidgetSettings): BitsState {
-    if (!preferences.isPro) return this
+    // Must match settingsFor(), which reads the same gate. If these two ever disagree,
+    // a widget shows its own board and then silently refuses to save changes to it.
+    if (!proUnlocked) return this
     val existing = boards[appWidgetId] ?: widget
     return copy(boards = boards + (appWidgetId to transform(existing)))
 }
