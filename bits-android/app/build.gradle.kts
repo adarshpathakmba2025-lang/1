@@ -15,8 +15,12 @@ android {
         applicationId = "com.bits.todoandgames"
         minSdk = 26
         targetSdk = 36
-        versionCode = 22
-        versionName = "1.4.1"
+        // Bumped to match everything shipped since 1.4.1: Bitris, Spasa, Chess, pause
+        // controls, the widget responsiveness fix, and the chess footer fixes. Every
+        // Play Store upload needs a versionCode strictly higher than the last one it
+        // accepts, so this has to move before the first real release goes up.
+        versionCode = 24
+        versionName = "1.7"
     }
 
     // A fixed debug key, so each new build installs over the previous one

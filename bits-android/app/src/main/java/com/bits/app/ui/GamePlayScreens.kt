@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -132,7 +133,18 @@ internal fun GameFrame(
                 .fillMaxWidth()
                 .padding(14.dp),
             contentAlignment = Alignment.Center,
-        ) { content() }
+        ) {
+            // Every game board fills whatever width its parent offers, which is exactly
+            // right on a phone but turns into an enormous, thin-fingered board on a
+            // tablet or an unfolded foldable, where this column can run past 800dp
+            // wide. Capping the width here, once, keeps every board - chess, the
+            // Bitris well, the memory grid - at a natural phone-sized scale on any
+            // device, while doing nothing at all on a phone screen narrower than the
+            // cap, where fillMaxWidth already wins.
+            Box(Modifier.widthIn(max = 520.dp), contentAlignment = Alignment.Center) {
+                content()
+            }
+        }
         Box(Modifier.padding(start = 14.dp, end = 14.dp, bottom = 18.dp)) { footer() }
     }
 }
